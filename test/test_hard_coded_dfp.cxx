@@ -21,6 +21,8 @@
 #include "WireCellGen/Drifter.h"
 #include "WireCellGen/Diffuser.h"
 #include "WireCellGen/PlaneDuctor.h"
+#include "WireCellGen/Digitizer.h"
+#include "WireCellAlg/ChannelCellSelector.h"
 
 #include <sstream>
 #include <tbb/flow_graph.h>
@@ -98,11 +100,24 @@ public:
     typedef typename multi_node::output_ports_type output_ports_type;
 
     // copy ctor
-    TbbConverterAdapter(const TbbConverterAdapter& other) : m_node(other.m_node), counter(other.counter) { }
-    TbbConverterAdapter(const converter_pointer& node) : m_node(node), counter(new counter_type(4)) { }
+    TbbConverterAdapter(const TbbConverterAdapter& other) : m_node(other.m_node), counter(other.counter) {
+	stringstream msg;
+	msg << "TbbConverterAdapter copy " << (void*)this << " <-- " << (void*)&other
+	    << " for " << typeid(InputType).name() << " --> " << typeid(OutputType).name() << "\n";
+	cerr << msg.str();
+    }
+    TbbConverterAdapter(const converter_pointer& node) : m_node(node), counter(new counter_type(4)) {
+    }
     TbbConverterAdapter(const INode::pointer& inode) : m_node(dynamic_pointer_cast<converter_type>(inode)), counter(new counter_type(4)) { }
     ~TbbConverterAdapter() { }
-    void operator=( const TbbConverterAdapter& other ) { m_node = other.m_node; }
+    void operator=( const TbbConverterAdapter& other ) {
+	stringstream msg;
+	msg << "TbbConverterAdapter assign " << (void*)this << " <-- " << (void*)&other
+	    << " for " << typeid(InputType).name() << " --> " << typeid(OutputType).name() << "\n";
+	cerr << msg.str();
+
+	m_node = other.m_node;
+    }
 
     void operator()(const input_pointer& in, output_ports_type& out) {
 	bool ok = m_node->insert(in);
@@ -139,9 +154,8 @@ public:
 	return msg.str();
     }
 
-    static multi_node adapt(dfp::graph& graph, INode::pointer wc_node, int concurrency=1) {
-	TbbConverterAdapter<InputType,OutputType> me(wc_node);
-	return multi_node(graph, concurrency, me);
+    multi_node node(dfp::graph& graph, int concurrency=1) {
+	return multi_node(graph, concurrency, *this);
     }
 
 
@@ -220,6 +234,50 @@ INode::pointer make_ductor(const Ray& pitch,
     return INode::pointer(new PlaneDuctor(wpid, nwires, tick, pitch_distance, t0, wire_zero_dist));
 }
 
+INode::pointer make_digitizer(const IWire::shared_vector& wires)
+{
+    Digitizer* digi = new Digitizer;
+    digi->set_wires(wires);
+    return INode::pointer(digi);
+}
+
+INode::pointer make_ccselector(const ICell::shared_vector& cells)
+{
+    ChannelCellSelector* ccsel = new ChannelCellSelector;
+    ccsel->set_cells(cells);
+    return INode::pointer(ccsel);
+}
+
+template<typename DataType>
+struct RepackUVW {
+    typedef typename DataType::pointer pointer;
+    typedef tbb::flow::tuple<pointer,pointer,pointer> tuple_type;
+    typedef typename DataType::vector vector_type;
+    typedef typename DataType::shared_vector return_type;
+
+    return_type operator()( const tuple_type& tup ) {
+	stringstream msg;
+	pointer u = std::get<0>(tup);
+	pointer v = std::get<1>(tup);
+	pointer w = std::get<2>(tup);
+
+	if (!u && !v && !w) {
+	    cerr << "EOS from RepackUVW";
+	    return return_type();
+	}
+	if (!u || !v || !w) {
+	    cerr << "Error in RepackUVW, out of sync\n";
+	    return return_type();
+	}
+	vector_type* ret = new vector_type;
+	ret->push_back(u);
+	ret->push_back(v);
+	ret->push_back(w);
+	return return_type(ret);
+    }
+};
+
+
 
 
 int main () {
@@ -247,6 +305,8 @@ int main () {
     typedef TbbConverterAdapter<IDepo, IDepo> DepoDepoAdapt;
     typedef TbbConverterAdapter<IDepo, IDiffusion> DepoDiffusionAdapt;
     typedef TbbConverterAdapter<IDiffusion, IPlaneSlice> DiffusionPlaneSliceAdapt;
+    typedef TbbConverterAdapter<IPlaneSlice::vector, IChannelSlice> PlaneSliceChannelSliceAdapt;
+    typedef TbbConverterAdapter<IChannelSlice, ICellSlice> ChannelSliceCellSliceAdapt;
 
     // the data flow graph
     dfp::graph graph;
@@ -260,13 +320,13 @@ int main () {
     // distribute deposition directly
     dfp::broadcast_node<IDepo::pointer> fanout_depo(graph);
 
-    // drift depositions duplicitously 
+    // drift depositions duplicitous 
     auto drift_u_adapt = DepoDepoAdapt(make_drifter(wp_wps->pitchU().first.x()));
     auto drift_v_adapt = DepoDepoAdapt(make_drifter(wp_wps->pitchV().first.x()));
     auto drift_w_adapt = DepoDepoAdapt(make_drifter(wp_wps->pitchW().first.x()));
-    auto drift_u_node = DepoDepoAdapt::multi_node(graph, 1, drift_u_adapt);
-    auto drift_v_node = DepoDepoAdapt::multi_node(graph, 1, drift_v_adapt);
-    auto drift_w_node = DepoDepoAdapt::multi_node(graph, 1, drift_w_adapt);
+    auto drift_u_node = drift_u_adapt.node(graph);
+    auto drift_v_node = drift_v_adapt.node(graph);
+    auto drift_w_node = drift_w_adapt.node(graph);
 
 
     // diffuse drifted depositions delicately
@@ -276,18 +336,30 @@ int main () {
 							  wp_wps->pitchV().first.x()/drift_velocity));
     auto diff_w_adapt = DepoDiffusionAdapt(make_diffusion(wp_wps->pitchW(), tick, start_time,
 							  wp_wps->pitchW().first.x()/drift_velocity));
-    auto diff_u_node = DepoDiffusionAdapt::multi_node(graph, 1, diff_u_adapt);
-    auto diff_v_node = DepoDiffusionAdapt::multi_node(graph, 1, diff_v_adapt);
-    auto diff_w_node = DepoDiffusionAdapt::multi_node(graph, 1, diff_w_adapt);
+    auto diff_u_node = diff_u_adapt.node(graph);
+    auto diff_v_node = diff_v_adapt.node(graph);
+    auto diff_w_node = diff_w_adapt.node(graph);
 
 
     // ductor (con/in) digitizes diffusions deftly.
     auto duct_u_adapt = DiffusionPlaneSliceAdapt(make_ductor(wp_wps->pitchU(), kUlayer, wires, tick, start_time));
     auto duct_v_adapt = DiffusionPlaneSliceAdapt(make_ductor(wp_wps->pitchV(), kVlayer, wires, tick, start_time));
     auto duct_w_adapt = DiffusionPlaneSliceAdapt(make_ductor(wp_wps->pitchW(), kWlayer, wires, tick, start_time));
-    auto duct_u_node = DiffusionPlaneSliceAdapt::multi_node(graph, 1, duct_u_adapt);
-    auto duct_v_node = DiffusionPlaneSliceAdapt::multi_node(graph, 1, duct_v_adapt);
-    auto duct_w_node = DiffusionPlaneSliceAdapt::multi_node(graph, 1, duct_w_adapt);
+    auto duct_u_node = duct_u_adapt.node(graph);
+    auto duct_v_node = duct_v_adapt.node(graph);
+    auto duct_w_node = duct_w_adapt.node(graph);
+
+    // detuplize
+    typedef tbb::flow::tuple<IPlaneSlice::pointer,IPlaneSlice::pointer,IPlaneSlice::pointer> PlaneSliceTuple;
+    dfp::join_node< PlaneSliceTuple > join_planeslice_node(graph);
+    dfp::function_node< PlaneSliceTuple, IPlaneSlice::shared_vector > pst_repack(graph, 1, RepackUVW<IPlaneSlice>());
+
+    // digitize dem diffused drifted depositions
+    auto digi_adapt = PlaneSliceChannelSliceAdapt(make_digitizer(wires));
+    auto digi_node = digi_adapt.node(graph);
+
+    auto ccsel_adapt = ChannelSliceCellSliceAdapt(make_ccselector(cells));
+    auto ccsel_node = ccsel_adapt.node(graph,4);
 
     // now knot nodes:
     make_edge(depo_source, fanout_depo);
@@ -304,6 +376,14 @@ int main () {
     make_edge(dfp::output_port<0>(diff_v_node), duct_v_node);
     make_edge(dfp::output_port<0>(diff_w_node), duct_w_node);
 
+    make_edge(dfp::output_port<0>(duct_u_node), dfp::input_port<0>(join_planeslice_node));
+    make_edge(dfp::output_port<0>(duct_v_node), dfp::input_port<1>(join_planeslice_node));
+    make_edge(dfp::output_port<0>(duct_w_node), dfp::input_port<2>(join_planeslice_node));
+
+    make_edge(join_planeslice_node, pst_repack);
+    make_edge(pst_repack, digi_node);
+
+    make_edge(dfp::output_port<0>(digi_node), ccsel_node);
 
     // flow, Morpheus, flow
     depo_source.activate();
@@ -324,6 +404,8 @@ int main () {
 	 << "\tU:" << duct_u_adapt.chirp()
 	 << "\tV:" << duct_v_adapt.chirp()
 	 << "\tW:" << duct_w_adapt.chirp()
+	 << "Digitized: " << digi_adapt.chirp()
+	 << "Celled: " << ccsel_adapt.chirp()
 	;
 
     return 0;

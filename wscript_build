@@ -1,4 +1,4 @@
 # -*- python -*-
-bld.smplpkg('WireCellTbb', use='WireCellIface TBB', test_use='WireCellGen')
+bld.smplpkg('WireCellTbb', use='WireCellIface TBB', test_use='WireCellGen WireCellAlg PTHREAD')
 
 
