@@ -1,6 +1,5 @@
 #include "WireCellIface/IWireParameters.h"
 #include "WireCellIface/IWireGenerator.h"
-#include "WireCellIface/SimpleNodes.h"
 
 #include "WireCellIface/ICell.h"
 #include "WireCellIface/ICellMaker.h"
@@ -40,8 +39,8 @@ public:
     typedef std::vector<int> counter_type;
 
     // node type
-    typedef ISendingNode<OutputType> sender_type;
-    typedef std::shared_ptr< sender_type > sender_pointer;
+    typedef ISourceNode<OutputType> wc_node_type;
+    typedef std::shared_ptr< wc_node_type > wc_node_pointer;
 
     // data type
     typedef std::shared_ptr<const OutputType> output_pointer;
@@ -49,8 +48,8 @@ public:
     // copy ctor
     TbbSourceAdapter( const TbbSourceAdapter& other ) : m_node(other.m_node), counter(other.counter) {}
 
-    TbbSourceAdapter( const sender_pointer& node ) : m_node(node), counter(new counter_type(2)) {}
-    TbbSourceAdapter( const INode::pointer& inode ) : m_node(dynamic_pointer_cast<sender_type>(inode)), counter(new counter_type(2)) {}
+    TbbSourceAdapter( const wc_node_pointer& node ) : m_node(node), counter(new counter_type(2)) {}
+    TbbSourceAdapter( const INode::pointer& inode ) : m_node(dynamic_pointer_cast<wc_node_type>(inode)), counter(new counter_type(2)) {}
 
     ~TbbSourceAdapter() { }
     void operator=( const TbbSourceAdapter& other ) { m_node = other.m_node; }
@@ -78,18 +77,18 @@ public:
 
 
 private:
-    sender_pointer m_node;
+    wc_node_pointer m_node;
     std::shared_ptr< counter_type > counter; // shared to survive copy 
 };    
 
 template<typename InputType, typename OutputType>
-class TbbConverterAdapter {
+class TbbBufferAdapter {
 public:
     // for debugging. counts: (N_in, N_out, N_inerr, N_outerr)
     typedef std::vector<int> counter_type;
 
-    typedef IConverterNode<InputType,OutputType> converter_type;
-    typedef std::shared_ptr< converter_type > converter_pointer;
+    typedef IBufferNode<InputType,OutputType> wc_buffer_type;
+    typedef std::shared_ptr< wc_buffer_type > wc_buffer_pointer;
 
     typedef typename std::shared_ptr<const InputType> input_pointer;
     typedef typename std::shared_ptr<const OutputType> output_pointer;
@@ -100,19 +99,19 @@ public:
     typedef typename multi_node::output_ports_type output_ports_type;
 
     // copy ctor
-    TbbConverterAdapter(const TbbConverterAdapter& other) : m_node(other.m_node), counter(other.counter) {
+    TbbBufferAdapter(const TbbBufferAdapter& other) : m_node(other.m_node), counter(other.counter) {
 	stringstream msg;
-	msg << "TbbConverterAdapter copy " << (void*)this << " <-- " << (void*)&other
+	msg << "TbbBufferAdapter copy " << (void*)this << " <-- " << (void*)&other
 	    << " for " << typeid(InputType).name() << " --> " << typeid(OutputType).name() << "\n";
 	cerr << msg.str();
     }
-    TbbConverterAdapter(const converter_pointer& node) : m_node(node), counter(new counter_type(4)) {
+    TbbBufferAdapter(const wc_buffer_pointer& node) : m_node(node), counter(new counter_type(4)) {
     }
-    TbbConverterAdapter(const INode::pointer& inode) : m_node(dynamic_pointer_cast<converter_type>(inode)), counter(new counter_type(4)) { }
-    ~TbbConverterAdapter() { }
-    void operator=( const TbbConverterAdapter& other ) {
+    TbbBufferAdapter(const INode::pointer& inode) : m_node(dynamic_pointer_cast<wc_buffer_type>(inode)), counter(new counter_type(4)) { }
+    ~TbbBufferAdapter() { }
+    void operator=( const TbbBufferAdapter& other ) {
 	stringstream msg;
-	msg << "TbbConverterAdapter assign " << (void*)this << " <-- " << (void*)&other
+	msg << "TbbBufferAdapter assign " << (void*)this << " <-- " << (void*)&other
 	    << " for " << typeid(InputType).name() << " --> " << typeid(OutputType).name() << "\n";
 	cerr << msg.str();
 
@@ -161,7 +160,7 @@ public:
 
 
 private:
-    converter_pointer m_node;
+    wc_buffer_pointer m_node;
     std::shared_ptr< counter_type > counter; // shared to survive copy 
 };
 
@@ -291,22 +290,28 @@ int main () {
 
     auto wp_wps = WireCell::Factory::lookup<IWireParameters>("WireParams");
     auto pw_gen = WireCell::Factory::lookup<IWireGenerator>("WireGenerator");
-    Assert(pw_gen->insert(wp_wps));
+
     IWireGenerator::output_pointer wires;
-    Assert(pw_gen->extract(wires));
+    bool ok = (*pw_gen)(wp_wps, wires);
+    Assert(ok);
     
     auto bc = WireCell::Factory::lookup<ICellMaker>("BoundCells");
     Assert(bc);
-    Assert(bc->insert(wires));
     ICellMaker::output_pointer cells;
-    Assert(bc->extract(cells));
+    ok = (*bc)(wires, cells);
+    Assert(ok);
 
     // CHEATING.  We want to erase any explicit use of a nodes's input/output types.
-    typedef TbbConverterAdapter<IDepo, IDepo> DepoDepoAdapt;
-    typedef TbbConverterAdapter<IDepo, IDiffusion> DepoDiffusionAdapt;
-    typedef TbbConverterAdapter<IDiffusion, IPlaneSlice> DiffusionPlaneSliceAdapt;
-    typedef TbbConverterAdapter<IPlaneSlice::vector, IChannelSlice> PlaneSliceChannelSliceAdapt;
-    typedef TbbConverterAdapter<IChannelSlice, ICellSlice> ChannelSliceCellSliceAdapt;
+    // drifter
+    typedef TbbBufferAdapter<IDepo, IDepo> DepoDepoAdapt;
+    // diffuser
+    typedef TbbBufferAdapter<IDepo, IDiffusion> DepoDiffusionAdapt;
+    // ductor
+    typedef TbbBufferAdapter<IDiffusion, IPlaneSlice> DiffusionPlaneSliceAdapt;
+    // digitizer
+//    typedef TbbFunctionAdapter<IPlaneSlice::vector, IChannelSlice> PlaneSliceChannelSliceAdapt;
+    // cell selector
+//    typedef TbbFunctionAdapter<IChannelSlice, ICellSlice> ChannelSliceCellSliceAdapt;
 
     // the data flow graph
     dfp::graph graph;
@@ -355,11 +360,11 @@ int main () {
     dfp::function_node< PlaneSliceTuple, IPlaneSlice::shared_vector > pst_repack(graph, 1, RepackUVW<IPlaneSlice>());
 
     // digitize dem diffused drifted depositions
-    auto digi_adapt = PlaneSliceChannelSliceAdapt(make_digitizer(wires));
-    auto digi_node = digi_adapt.node(graph);
+//    auto digi_adapt = PlaneSliceChannelSliceAdapt(make_digitizer(wires));
+//    auto digi_node = digi_adapt.node(graph);
 
-    auto ccsel_adapt = ChannelSliceCellSliceAdapt(make_ccselector(cells));
-    auto ccsel_node = ccsel_adapt.node(graph,4);
+//    auto ccsel_adapt = ChannelSliceCellSliceAdapt(make_ccselector(cells));
+//    auto ccsel_node = ccsel_adapt.node(graph,4);
 
     // now knot nodes:
     make_edge(depo_source, fanout_depo);
@@ -381,9 +386,9 @@ int main () {
     make_edge(dfp::output_port<0>(duct_w_node), dfp::input_port<2>(join_planeslice_node));
 
     make_edge(join_planeslice_node, pst_repack);
-    make_edge(pst_repack, digi_node);
+//    make_edge(pst_repack, digi_node);
 
-    make_edge(dfp::output_port<0>(digi_node), ccsel_node);
+//    make_edge(dfp::output_port<0>(digi_node), ccsel_node);
 
     // flow, Morpheus, flow
     depo_source.activate();
@@ -404,8 +409,8 @@ int main () {
 	 << "\tU:" << duct_u_adapt.chirp()
 	 << "\tV:" << duct_v_adapt.chirp()
 	 << "\tW:" << duct_w_adapt.chirp()
-	 << "Digitized: " << digi_adapt.chirp()
-	 << "Celled: " << ccsel_adapt.chirp()
+//	 << "Digitized: " << digi_adapt.chirp()
+//	 << "Celled: " << ccsel_adapt.chirp()
 	;
 
     return 0;
