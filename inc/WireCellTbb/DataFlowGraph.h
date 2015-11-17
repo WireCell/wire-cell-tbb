@@ -14,7 +14,7 @@ namespace WireCellTbb {
 	tbb::flow::graph m_graph;
 	std::map<std::string, INodeMaker*> m_node_makers;
 	std::map<std::string, INodeConnector*> m_node_connectors;
-	std::map<WireCell::INode::pointer, tbb::flow::graph_node*> m_wc2tbb;
+	std::map<WireCell::INode::pointer, INodeWrapper*> m_node_wrappers;
     public:
 	DataFlowGraph();
 	virtual ~DataFlowGraph(){} 
@@ -31,7 +31,7 @@ namespace WireCellTbb {
 
     private:
 
-	tbb::flow::graph_node* get_tbb_node(WireCell::INode::pointer wcnode);
+	INodeWrapper* get_node_wrapper(WireCell::INode::pointer wcnode);
 	INodeConnector* get_connector(const std::string& data_type_name);
 
     };

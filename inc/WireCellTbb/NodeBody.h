@@ -7,7 +7,6 @@
 
 namespace WireCellTbb {
 
-    // fixme:move into NodeBody.h
     template<typename Signature>
     class SourceBody {
     public:
@@ -31,6 +30,43 @@ namespace WireCellTbb {
 	    return m_signature->extract(out);
 	}
     private:
+	signature_pointer m_signature;
+
+    };
+
+
+    template<typename Signature>
+    class BufferBody {
+    public:
+	typedef Signature signature_type;
+	typedef std::shared_ptr<Signature> signature_pointer;
+	typedef typename Signature::output_type output_type;
+	typedef typename Signature::output_pointer output_pointer;
+	typedef typename Signature::input_type input_type;
+	typedef typename Signature::input_pointer input_pointer;
+
+	typedef tbb::flow::multifunction_node<input_pointer, tbb::flow::tuple<output_pointer> > tbbmf_node;
+	typedef typename tbbmf_node::output_ports_type output_ports_type;
+
+	BufferBody(signature_pointer sig) : m_signature(sig) {}
+
+	void operator()(const input_pointer& in, output_ports_type& out) {
+	    bool ok = m_signature->insert(in);
+
+	    while (true) {
+		output_pointer o;
+		ok = m_signature->extract(o);
+		if (!ok) {
+		    break;
+		}
+
+		/// fixme: this only handles a single output port.
+		std::get<0>(out).try_put(o); // handle errors? we don't need to handle no stinking errors.
+	    }
+	}	
+
+    private:
+
 	signature_pointer m_signature;
 
     };
