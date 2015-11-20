@@ -50,6 +50,53 @@ namespace WireCellTbb {
 
     };
 
+    // Maker of TBB function nodes holding a WireCell::IFunctionNode
+    template<typename Signature>
+    class FunctionNodeMaker : public INodeMaker {
+    public:
+	typedef Signature signature_type;
+	typedef std::shared_ptr<Signature> signature_pointer;
+	typedef typename Signature::output_type output_type;
+	typedef typename Signature::output_pointer output_pointer;
+	typedef typename Signature::input_type input_type;
+	typedef typename Signature::input_pointer input_pointer;
+	
+	typedef tbb::flow::receiver< input_pointer > receiver_type;
+	typedef tbb::flow::sender< output_pointer > sender_type;
+
+	virtual ~FunctionNodeMaker() {}
+
+	virtual std::string signature() {
+	    return typeid(signature_type).name();
+	}
+
+	virtual INodeWrapper* make_node_wrapper(tbb::flow::graph& graph, WireCell::INode::pointer wc_inode) {
+	    if (wc_inode->signature() != signature()) {
+		return nullptr;
+	    }
+	    signature_pointer sig = std::dynamic_pointer_cast<signature_type>(wc_inode);
+	    if (!sig) {
+		return nullptr;
+	    }
+
+	    auto fnode = new tbb::flow::function_node<input_pointer, output_pointer>(graph, wc_inode->concurrency(),
+										     FunctionBody<signature_type>(sig));
+	    auto node = dynamic_cast<tbb::flow::graph_node*>(fnode);
+
+	    receiver_type* receiver = dynamic_cast<receiver_type*>(node);
+	    INodeWrapper::port_vector rv = {
+		new ReceiverPortWrapper<input_type>(receiver)
+	    };
+	    sender_type* sender = dynamic_cast<sender_type*>(node);
+	    INodeWrapper::port_vector sv = {
+		new SenderPortWrapper<output_type>(sender)
+	    };
+	    INodeWrapper* ret = new GeneralNodeWrapper(rv, sv);
+	    return ret;
+	}
+    };
+
+
     // Maker of TBB multifunction nodes holding a WireCell::IBufferNode
     template<typename Signature>
     class BufferNodeMaker : public INodeMaker {

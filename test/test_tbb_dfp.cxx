@@ -25,6 +25,8 @@
 #include "WireCellGen/Diffuser.h"
 #include "WireCellGen/PlaneDuctor.h"
 #include "WireCellGen/PlaneSliceMerger.h"
+#include "WireCellGen/Digitizer.h"
+#include "WireCellAlg/ChannelCellSelector.h"
 
 
 #include <iostream>
@@ -124,6 +126,21 @@ INode::pointer make_psmerger()
     return INode::pointer(new PlaneSliceMerger());
 }
 
+INode::pointer make_digitizer(const IWire::shared_vector& wires)
+{
+    Digitizer* digi = new Digitizer;
+    digi->set_wires(wires);
+    return INode::pointer(digi);
+}
+
+INode::pointer make_ccselector(const ICell::shared_vector& cells)
+{
+    ChannelCellSelector* ccsel = new ChannelCellSelector;
+    ccsel->set_cells(cells);
+    return INode::pointer(ccsel);
+}
+
+
 int main(int argc, char* argv[])
 {
     PluginManager& pm = PluginManager::instance();
@@ -165,6 +182,8 @@ int main(int argc, char* argv[])
     WireCell::INode::pointer ductorW = make_ductor(wire_param, wires, WireCell::kWlayer);
 
     WireCell::INode::pointer psmerger = make_psmerger();
+    WireCell::INode::pointer digitizer = make_digitizer(wires); // fixme: how to pass these in
+    WireCell::INode::pointer ccselector = make_ccselector(cells); // fixme: ibid
 
 
     cerr << "Connecting data flow graph:\n";
@@ -184,6 +203,9 @@ int main(int argc, char* argv[])
     Assert( dfp->connect(ductorU, psmerger, 0, 0) );
     Assert( dfp->connect(ductorV, psmerger, 0, 1) );
     Assert( dfp->connect(ductorW, psmerger, 0, 2) );
+
+    Assert( dfp->connect(psmerger, digitizer) );
+    Assert( dfp->connect(digitizer, ccselector) );
 
     //.... to be continued ...
 
@@ -211,6 +233,8 @@ int main(int argc, char* argv[])
 	 << endl;
 
     cout << "Merger:" << psmerger->nin() << "/" << psmerger->nout() << endl;
+    cout << "Digitizer:" << digitizer->nin() << "/" << digitizer->nout() << endl;
+    cout << "CellSelector:" << ccselector->nin() << "/" << ccselector->nout() << endl;
     
     return 0;
 }

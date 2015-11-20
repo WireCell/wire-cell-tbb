@@ -5,6 +5,8 @@
 #include "WireCellIface/IDiffuser.h"
 #include "WireCellIface/IPlaneDuctor.h"
 #include "WireCellIface/IPlaneSliceMerger.h"
+#include "WireCellIface/IDigitizer.h"
+#include "WireCellIface/IChannelCellSelector.h"
 
 #include "WireCellUtil/Type.h"
 
@@ -27,13 +29,17 @@ DataFlowGraph::DataFlowGraph(int max_threads)
     add_maker(new BufferNodeMaker<IDiffuser>);
     add_maker(new BufferNodeMaker<IPlaneDuctor>);
     add_maker(new JoinNodeMaker<IPlaneSliceMerger>);
-
+    add_maker(new FunctionNodeMaker<IDigitizer>);
+    add_maker(new FunctionNodeMaker<IChannelCellSelector>);
+    
 
     // fixme: must add one of these lines for each IData interface
     add_connector(new NodeConnector<IDepo>);
     add_connector(new NodeConnector<IDiffusion>);
     add_connector(new NodeConnector<IPlaneSlice>);
     add_connector(new NodeConnector<IPlaneSlice::vector>);
+    add_connector(new NodeConnector<IChannelSlice>);
+    add_connector(new NodeConnector<ICellSlice>);
 }
 
 DataFlowGraph::~DataFlowGraph()

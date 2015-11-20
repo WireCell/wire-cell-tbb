@@ -69,6 +69,27 @@ namespace WireCellTbb {
     };
 
     template<typename Signature>
+    class FunctionBody {
+    public:
+	typedef Signature signature_type;
+	typedef std::shared_ptr<Signature> signature_pointer;
+	typedef typename Signature::output_type output_type;
+	typedef typename Signature::output_pointer output_pointer;
+	typedef typename Signature::input_type input_type;
+	typedef typename Signature::input_pointer input_pointer;
+
+	FunctionBody(signature_pointer sig) : m_signature(sig) {}
+
+	output_pointer operator()(const input_pointer& in) {
+	    output_pointer out;
+	    bool ok = (*m_signature)(in, out);
+	    return out;
+	}
+    private:
+	signature_pointer m_signature;
+    };
+
+    template<typename Signature>
     class JoinBody3 {
     public:
 	typedef Signature signature_type;
