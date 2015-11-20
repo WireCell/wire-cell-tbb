@@ -24,6 +24,7 @@
 #include "WireCellGen/Drifter.h"
 #include "WireCellGen/Diffuser.h"
 #include "WireCellGen/PlaneDuctor.h"
+#include "WireCellGen/PlaneSliceMerger.h"
 
 
 #include <iostream>
@@ -118,7 +119,12 @@ INode::pointer make_ductor(IWireParameters::pointer wp, const IWire::shared_vect
     return INode::pointer(new PlaneDuctor(wpid, nwires, time_slice, pitch_distance, start_time, wire_zero_dist));
 }
 
-int main()
+INode::pointer make_psmerger()
+{
+    return INode::pointer(new PlaneSliceMerger());
+}
+
+int main(int argc, char* argv[])
 {
     PluginManager& pm = PluginManager::instance();
     pm.add("WireCellGen");
@@ -134,11 +140,14 @@ int main()
     ICellMaker::output_pointer cells;
     ok = (*bc)(wires, cells);
     Assert(ok);
-
-
+    
+    int max_threads = 0;
+    if (argc>2) {
+	max_threads = atoi(argv[1]);
+    }
 
     // emulate NF lookup
-    WireCell::IDataFlowGraph* dfp = new WireCellTbb::DataFlowGraph;
+    WireCell::IDataFlowGraph* dfp = new WireCellTbb::DataFlowGraph(max_threads);
 
     // emulate NF lookup and initialization
     WireCell::INode::pointer depo_source = make_depo();
@@ -155,6 +164,8 @@ int main()
     WireCell::INode::pointer ductorV = make_ductor(wire_param, wires, WireCell::kVlayer);
     WireCell::INode::pointer ductorW = make_ductor(wire_param, wires, WireCell::kWlayer);
 
+    WireCell::INode::pointer psmerger = make_psmerger();
+
 
     cerr << "Connecting data flow graph:\n";
 
@@ -169,8 +180,37 @@ int main()
     Assert( dfp->connect(diffuserU, ductorU) );
     Assert( dfp->connect(diffuserV, ductorV) );
     Assert( dfp->connect(diffuserW, ductorW) );
+    
+    Assert( dfp->connect(ductorU, psmerger, 0, 0) );
+    Assert( dfp->connect(ductorV, psmerger, 0, 1) );
+    Assert( dfp->connect(ductorW, psmerger, 0, 2) );
 
     //.... to be continued ...
 
+    dfp->run();
+
+    cout << "DepoSource: " << depo_source->nin() << "/" << depo_source->nout()
+	 << endl;
+
+    cout << "Drifter"
+	 << " U:" << drifterU->nin() << "/" << drifterU->nout()
+	 << " V:" << drifterV->nin() << "/" << drifterV->nout()
+	 << " W:" << drifterW->nin() << "/" << drifterW->nout()
+	 << endl;
+
+    cout << "Diffuser"
+	 << " U:" << diffuserU->nin() << "/" << diffuserU->nout()
+	 << " V:" << diffuserV->nin() << "/" << diffuserV->nout()
+	 << " W:" << diffuserW->nin() << "/" << diffuserW->nout()
+	 << endl;
+
+    cout << "Ductor"
+	 << " U:" << ductorU->nin() << "/" << ductorU->nout()
+	 << " V:" << ductorV->nin() << "/" << ductorV->nout()
+	 << " W:" << ductorW->nin() << "/" << ductorW->nout()
+	 << endl;
+
+    cout << "Merger:" << psmerger->nin() << "/" << psmerger->nout() << endl;
+    
     return 0;
 }

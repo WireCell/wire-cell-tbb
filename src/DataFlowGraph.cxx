@@ -4,6 +4,7 @@
 #include "WireCellIface/IDrifter.h"
 #include "WireCellIface/IDiffuser.h"
 #include "WireCellIface/IPlaneDuctor.h"
+#include "WireCellIface/IPlaneSliceMerger.h"
 
 #include "WireCellUtil/Type.h"
 
@@ -13,7 +14,9 @@ using namespace std;
 using namespace WireCell;
 using namespace WireCellTbb;
 
-DataFlowGraph::DataFlowGraph()
+DataFlowGraph::DataFlowGraph(int max_threads)
+    : m_sched(max_threads > 0 ? max_threads : tbb::task_scheduler_init::automatic)
+    , m_graph()
 {
     // fixme: must add one of these lines for each INode interface.
     // It is here that we bind node behavior and node signature.
@@ -23,38 +26,38 @@ DataFlowGraph::DataFlowGraph()
     add_maker(new BufferNodeMaker<IDrifter>);
     add_maker(new BufferNodeMaker<IDiffuser>);
     add_maker(new BufferNodeMaker<IPlaneDuctor>);
+    add_maker(new JoinNodeMaker<IPlaneSliceMerger>);
 
 
     // fixme: must add one of these lines for each IData interface
     add_connector(new NodeConnector<IDepo>);
     add_connector(new NodeConnector<IDiffusion>);
     add_connector(new NodeConnector<IPlaneSlice>);
+    add_connector(new NodeConnector<IPlaneSlice::vector>);
 }
 
-bool DataFlowGraph::connect(INode::pointer tail, INode::pointer head)
+DataFlowGraph::~DataFlowGraph()
+{
+}
+
+bool DataFlowGraph::connect(INode::pointer tail, INode::pointer head,
+			    int sport, int rport)
 {
     auto outs = tail->output_types();
     auto ins = head->input_types();
 
-    // for now just support 1-to-1.  In future add search for matching
-    // port type names or allow for explicit port numbers.
-
-    if (1 != outs.size()) {
+    if (0 > sport || sport >= outs.size()) {
 	cerr << "DataFlowGraph: failed to connect tail with " << outs.size() << " output ports\n";
 	return false;
     } 
-    if (1 != ins.size()) { 
+    if (0 > rport || rport >= ins.size()) { 
 	cerr << "DataFlowGraph: failed to connect head with " << ins.size() << " input ports\n";
 	return false; 
     } 
-    if (outs[0] != ins[0]) {
-	cerr << "DataFlowGraph: port type mismatch: \"" << demangle(outs[0]) << "\" != \"" << demangle(ins[0]) << "\"\n";
-	return false;
-    }
 
-    auto conn = get_connector(ins[0]);
+    auto conn = get_connector(ins[rport]);
     if (!conn) {
-	cerr << "DataFlowGraph: no connector for port type \"" << demangle(ins[0]) << "\"\n";
+	cerr << "DataFlowGraph: no connector for port type \"" << demangle(ins[rport]) << "\"\n";
 	return false;
     }
 
@@ -62,19 +65,25 @@ bool DataFlowGraph::connect(INode::pointer tail, INode::pointer head)
     auto r = get_node_wrapper(head);
 
     if (!s) {
-	cerr << "DataFlowGraph: failed to get tail node for \"" << demangle(outs[0]) << "\"\n";
+	cerr << "DataFlowGraph: failed to get tail node for \"" << demangle(outs[sport]) << "\"\n";
 	return false;
     }
     if (!r) {
-	cerr << "DataFlowGraph: failed to get head node for \"" << demangle(ins[0]) << "\"\n";
+	cerr << "DataFlowGraph: failed to get head node for \"" << demangle(ins[rport]) << "\"\n";
 	return false;
     }
 
-    bool ok = conn->connect(s,r);
+    bool ok = conn->connect(s,r,sport,rport);
     if (!ok) {
-	cerr << "DataFlowGraph: failed to connect tail node: \"" << demangle(tail->signature()) << "\" to head node: \"" << demangle(head->signature()) << "\" along port of type \"" << demangle(ins[0]) << "\"\n";
+	cerr << "DataFlowGraph: failed to connect tail node: \""
+	     << demangle(tail->signature())
+	     << "\" to head node: \"" << demangle(head->signature())
+	     << "\" along port of type \"" << demangle(ins[rport]) << "\"\n";
     }
-    cerr << "DataFlowGraph: connected tail node: \"" << demangle(tail->signature()) << "\" to head node: \"" << demangle(head->signature()) << "\" along port of type \"" << demangle(ins[0]) << "\"\n";
+    cerr << "DataFlowGraph: connected tail node: \""
+	 << demangle(tail->signature())
+	 << "\" to head node: \"" << demangle(head->signature())
+	 << "\" along port of type \"" << demangle(ins[rport]) << "\"\n";
 
     return ok;
 }
@@ -82,6 +91,11 @@ bool DataFlowGraph::connect(INode::pointer tail, INode::pointer head)
 
 bool DataFlowGraph::run()
 {
+    for (auto it : m_node_wrappers) {
+	it.second->initialize();
+    }
+    m_graph.wait_for_all();
+    return true;
 }
 
 

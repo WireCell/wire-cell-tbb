@@ -23,7 +23,7 @@ namespace WireCellTbb {
     template<typename DataType>
     class SenderPortWrapper : public IPortWrapper {
     public:
-	typedef tbb::flow::sender<typename DataType::pointer> sender_type;
+	typedef tbb::flow::sender<std::shared_ptr<const DataType> > sender_type;
 
 	SenderPortWrapper(sender_type* sender) : m_sender(sender) {}
 
@@ -36,7 +36,7 @@ namespace WireCellTbb {
     template<typename DataType>
     class ReceiverPortWrapper : public IPortWrapper {
     public:
-	typedef tbb::flow::receiver<typename DataType::pointer> receiver_type;
+	typedef tbb::flow::receiver<std::shared_ptr<const DataType> > receiver_type;
 
 	ReceiverPortWrapper(receiver_type* receiver) : m_receiver(receiver) {}
 
@@ -47,7 +47,6 @@ namespace WireCellTbb {
 	receiver_type* m_receiver;
 
     };
-    
 
     //
     // node wrapper
@@ -56,10 +55,16 @@ namespace WireCellTbb {
     class INodeWrapper {
     public:
 	virtual ~INodeWrapper() {}
-	virtual tbb::flow::graph_node* tbb_node() = 0;
+	//virtual tbb::flow::graph_node* tbb_node() = 0;
 	virtual std::string signature() = 0;
-	virtual IPortWrapper* sender_port(int port=0) { return nullptr; }
-	virtual IPortWrapper* receiver_port(int port=0) { return nullptr; }
+
+	typedef std::vector<IPortWrapper*> port_vector;
+	virtual port_vector sender_ports() { return port_vector(); }
+	virtual port_vector receiver_ports() { return port_vector(); }
+	
+	// call before running graph
+	virtual void initialize() { }
+
     };
 
     template<typename Signature>
@@ -68,24 +73,29 @@ namespace WireCellTbb {
 	IPortWrapper* m_port_wrapper; // just one for a source
     public:
 
+	typedef tbb::flow::source_node<typename Signature::output_pointer> source_node_type;
 	typedef tbb::flow::sender<typename Signature::output_pointer> sender_type;
 
 	SourceNodeWrapper(tbb::flow::graph_node* tbb_node)
 	    : m_node(tbb_node)
 	{
-	    auto s = dynamic_cast< sender_type* >(tbb_node);
+	    auto s = dynamic_cast< sender_type* >(m_node);
 	    m_port_wrapper = new SenderPortWrapper<typename Signature::output_type>(s);
 	    Assert(m_port_wrapper);
 	}
 
-	virtual tbb::flow::graph_node* tbb_node() { return m_node; }
+	//virtual tbb::flow::graph_node* tbb_node() { return m_node; }
 	virtual std::string signature() { return typeid(Signature).name(); }
 
-	virtual IPortWrapper* sender_port(int port=0) {
-	    if (port != 0) { return nullptr; }
-	    return m_port_wrapper;
+	virtual port_vector sender_ports() {
+	    return port_vector{m_port_wrapper};
 	}
 	
+	virtual void initialize() {
+	    auto s = dynamic_cast< source_node_type* >(m_node);
+	    s->activate();
+	}
+
     };
     
 
@@ -114,20 +124,34 @@ namespace WireCellTbb {
 	    m_sender = new SenderPortWrapper<typename Signature::output_type>(s);
 	}
 
-	virtual tbb::flow::graph_node* tbb_node() { return m_node; }
+	//virtual tbb::flow::graph_node* tbb_node() { return m_node; }
 	virtual std::string signature() { return typeid(Signature).name(); }
 
-	virtual IPortWrapper* sender_port(int port=0) {
-	    if (port != 0) { return nullptr; }
-	    return m_sender;
+	virtual port_vector sender_ports() {
+	    return port_vector{m_sender};
 	}
-	virtual IPortWrapper* receiver_port(int port=0) {
-	    if (port != 0) { return nullptr; }
-	    return m_receiver;
+	virtual port_vector receiver_ports() {
+	    return port_vector{m_receiver};
 	}
     };
     
 
+    class GeneralNodeWrapper : public INodeWrapper {
+	port_vector m_in;
+	port_vector m_out;
+    public:
+	GeneralNodeWrapper(const port_vector& in, const port_vector& out) : m_in(in), m_out(out) {}
+	
+	virtual std::string signature() { return typeid(void).name(); }
+
+	virtual port_vector sender_ports() {
+	    return m_out;
+	}
+	virtual port_vector receiver_ports() {
+	    return m_in;
+	}
+
+    };
 }
 
 #endif

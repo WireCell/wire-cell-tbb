@@ -85,8 +85,69 @@ namespace WireCellTbb {
 	    INodeWrapper* ret = new FunctionNodeWrapper<Signature>(node);
 	    return ret;
 	}
+    };
+
+    template<typename Signature>
+    class JoinNodeMaker : public INodeMaker {
+    public:
+	typedef Signature signature_type;
+	typedef std::shared_ptr<Signature> signature_pointer;
+	typedef typename Signature::output_type output_type;
+	typedef typename Signature::output_pointer output_pointer;
+	typedef typename Signature::input_type input_type;
+	typedef typename Signature::input_pointer input_pointer;
+
+	virtual ~JoinNodeMaker() {}
+
+	virtual std::string signature() {
+	    return typeid(signature_type).name();
+	}
+
+	virtual INodeWrapper* make_node_wrapper(tbb::flow::graph& graph, WireCell::INode::pointer wc_inode) {
+	    if (wc_inode->signature() != signature()) {
+		return nullptr;
+	    }
+	    signature_pointer sig = std::dynamic_pointer_cast<signature_type>(wc_inode);
+	    if (!sig) {
+		return nullptr;
+	    }
+
+	    // sig is IJoinNode
+	    // make a tbb::flow::join_node
+	    if (sig->ninputs() == 3) {
+		typedef tbb::flow::tuple<input_pointer,input_pointer,input_pointer> tuple_type;
+		auto jn = new tbb::flow::join_node<tuple_type>(graph);
+		auto jb = JoinBody3<signature_type>(sig);
+
+		typedef tbb::flow::multifunction_node<tuple_type, tbb::flow::tuple<output_pointer> > tbbmf_node;
+		typedef typename tbbmf_node::output_ports_type output_ports_type;
+		auto fn = new tbbmf_node(graph, 1, jb);
+
+		// internal edge
+		make_edge(*jn, *fn);
+
+		INodeWrapper::port_vector rv = {
+		    new ReceiverPortWrapper<input_type>(&tbb::flow::input_port<0>(*jn)),
+		    new ReceiverPortWrapper<input_type>(&tbb::flow::input_port<1>(*jn)),
+		    new ReceiverPortWrapper<input_type>(&tbb::flow::input_port<2>(*jn))
+		};
+		
+		typedef tbb::flow::sender<output_pointer> sender_type;
+		//sender_type* sender = dynamic_cast< sender_type* >(&tbb::flow::output_port<0>(*fn));
+		sender_type* sender = &tbb::flow::output_port<0>(*fn);
+		INodeWrapper::port_vector sv;
+		sv.push_back(new SenderPortWrapper<output_type>(sender));
+		
+                INodeWrapper* ret = new GeneralNodeWrapper(rv, sv);
+		return ret;
+		// we leak the tbb nodes, so sorry.
+	    }
+	    return nullptr;	// repeat above for different number of args
+	}
+	
 	
     };
+
 
 }
 

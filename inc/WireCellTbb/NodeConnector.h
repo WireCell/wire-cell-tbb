@@ -14,7 +14,7 @@ namespace WireCellTbb {
 	virtual ~INodeConnector(){}
 
 	virtual std::string port_type_name() = 0;
-	virtual bool connect(INodeWrapper* tail, INodeWrapper* head) = 0;
+	virtual bool connect(INodeWrapper* tail, INodeWrapper* head, int sport=0, int rport=0) = 0;
     };
 
     // A connector that can connect two nodes, one a sender and one a receiver, that pass the given data type.
@@ -33,9 +33,23 @@ namespace WireCellTbb {
 	    return typeid(port_type).name();
 	}
 
-	virtual bool connect(INodeWrapper* tail, INodeWrapper* head) {
-	    IPortWrapper* sportw = tail->sender_port();
-	    IPortWrapper* rportw = head->receiver_port();
+	virtual bool connect(INodeWrapper* tail, INodeWrapper* head, int sport=0, int rport=0) {
+	    auto sportv = tail->sender_ports();
+	    auto rportv = head->receiver_ports();
+
+	    if (sportv.empty()) {
+		std::cerr << "DataFlowGraph: empty sender port vector from \""
+			  << WireCell::demangle(tail->signature()) << "\"\n";
+		return false;
+	    }
+	    if (rportv.empty()) {
+		std::cerr << "DataFlowGraph: empty receiver port vector from \""
+			  << WireCell::demangle(head->signature()) << "\"\n";
+		return false;
+	    }
+
+	    IPortWrapper* sportw = sportv[sport];
+	    IPortWrapper* rportw = rportv[rport];
 
 	    if (!sportw) {
 		std::cerr << "DataFlowGraph: failed to get sender port wrapper from \""
