@@ -129,6 +129,23 @@ namespace WireCellTbb {
     };
     
 
+    template<typename Signature>
+    class SinkBody {
+    public:
+	typedef Signature signature_type;
+	typedef std::shared_ptr<Signature> signature_pointer;
+	typedef typename Signature::input_type input_type;
+	typedef typename Signature::input_pointer input_pointer;
+
+	SinkBody(signature_pointer sig) : m_signature(sig) {}
+
+	input_pointer operator()(const input_pointer& in) {
+	    bool ok = m_signature->insert(in);
+	    return in;
+	}
+    private:
+	signature_pointer m_signature;
+    };
 
 };
 

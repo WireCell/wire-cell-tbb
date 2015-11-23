@@ -27,6 +27,7 @@
 #include "WireCellGen/PlaneSliceMerger.h"
 #include "WireCellGen/Digitizer.h"
 #include "WireCellAlg/ChannelCellSelector.h"
+#include "WireCellAlg/CellSliceSink.h"
 
 
 #include <iostream>
@@ -140,6 +141,10 @@ INode::pointer make_ccselector(const ICell::shared_vector& cells)
     return INode::pointer(ccsel);
 }
 
+WireCell::INode::pointer make_cellslicesink()
+{
+    return INode::pointer(new CellSliceSink);
+}
 
 int main(int argc, char* argv[])
 {
@@ -184,6 +189,7 @@ int main(int argc, char* argv[])
     WireCell::INode::pointer psmerger = make_psmerger();
     WireCell::INode::pointer digitizer = make_digitizer(wires); // fixme: how to pass these in
     WireCell::INode::pointer ccselector = make_ccselector(cells); // fixme: ibid
+    WireCell::INode::pointer cssink = make_cellslicesink();
 
 
     cerr << "Connecting data flow graph:\n";
@@ -206,6 +212,7 @@ int main(int argc, char* argv[])
 
     Assert( dfp->connect(psmerger, digitizer) );
     Assert( dfp->connect(digitizer, ccselector) );
+    Assert( dfp->connect(ccselector, cssink) );
 
     //.... to be continued ...
 

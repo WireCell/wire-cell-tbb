@@ -7,6 +7,7 @@
 #include "WireCellIface/IPlaneSliceMerger.h"
 #include "WireCellIface/IDigitizer.h"
 #include "WireCellIface/IChannelCellSelector.h"
+#include "WireCellIface/ICellSliceSink.h"
 
 #include "WireCellUtil/Type.h"
 
@@ -31,6 +32,7 @@ DataFlowGraph::DataFlowGraph(int max_threads)
     add_maker(new JoinNodeMaker<IPlaneSliceMerger>);
     add_maker(new FunctionNodeMaker<IDigitizer>);
     add_maker(new FunctionNodeMaker<IChannelCellSelector>);
+    add_maker(new SinkNodeMaker<ICellSliceSink>);
     
 
     // fixme: must add one of these lines for each IData interface

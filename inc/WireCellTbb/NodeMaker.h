@@ -5,6 +5,8 @@
 #include "WireCellTbb/NodeBody.h"
 #include "WireCellTbb/NodeWrapper.h"
 
+#include "WireCellUtil/Type.h"
+
 #include <tbb/flow_graph.h>
 
 #include <string>
@@ -79,7 +81,9 @@ namespace WireCellTbb {
 		return nullptr;
 	    }
 
-	    auto fnode = new tbb::flow::function_node<input_pointer, output_pointer>(graph, wc_inode->concurrency(),
+	    int conc = wc_inode->concurrency();
+	    std::cerr << "FunctionNodeMaker: making node \"" << WireCell::demangle(wc_inode->signature()) << "\" with concurrency " << conc << std::endl;
+	    auto fnode = new tbb::flow::function_node<input_pointer, output_pointer>(graph, conc ? conc : tbb::flow::unlimited,
 										     FunctionBody<signature_type>(sig));
 	    auto node = dynamic_cast<tbb::flow::graph_node*>(fnode);
 
@@ -191,9 +195,55 @@ namespace WireCellTbb {
 	    }
 	    return nullptr;	// repeat above for different number of args
 	}
-	
-	
     };
+
+
+    // Maker of TBB function nodes holding a WireCell::ISinkNode
+    template<typename Signature>
+    class SinkNodeMaker : public INodeMaker {
+    public:
+	typedef Signature signature_type;
+	typedef std::shared_ptr<Signature> signature_pointer;
+	typedef typename Signature::input_type input_type;
+	typedef typename Signature::input_pointer input_pointer;
+	
+	typedef tbb::flow::receiver< input_pointer > receiver_type;
+	typedef tbb::flow::sender< input_pointer > sender_type;
+
+	virtual ~SinkNodeMaker() {}
+
+	virtual std::string signature() {
+	    return typeid(signature_type).name();
+	}
+
+	virtual INodeWrapper* make_node_wrapper(tbb::flow::graph& graph, WireCell::INode::pointer wc_inode) {
+	    if (wc_inode->signature() != signature()) {
+		return nullptr;
+	    }
+	    signature_pointer sig = std::dynamic_pointer_cast<signature_type>(wc_inode);
+	    if (!sig) {
+		return nullptr;
+	    }
+
+	    int conc = wc_inode->concurrency();
+	    std::cerr << "SinkNodeMaker: making node \"" << WireCell::demangle(wc_inode->signature()) << "\" with concurrency " << conc << std::endl;
+	    auto fnode = new tbb::flow::function_node<input_pointer,input_pointer>(graph, conc ? conc : tbb::flow::unlimited,
+										   SinkBody<signature_type>(sig));
+	    auto node = dynamic_cast<tbb::flow::graph_node*>(fnode);
+
+	    receiver_type* receiver = dynamic_cast<receiver_type*>(node);
+	    INodeWrapper::port_vector rv = {
+		new ReceiverPortWrapper<input_type>(receiver)
+	    };
+	    sender_type* sender = dynamic_cast<sender_type*>(node);
+	    INodeWrapper::port_vector sv = {
+		new SenderPortWrapper<input_type>(sender)
+	    };
+	    INodeWrapper* ret = new GeneralNodeWrapper(rv, sv);
+	    return ret;
+	}
+    };
+
 
 
 }
