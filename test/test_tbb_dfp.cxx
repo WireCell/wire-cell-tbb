@@ -32,6 +32,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <string>
 
 using namespace std;
@@ -141,9 +142,44 @@ INode::pointer make_ccselector(const ICell::shared_vector& cells)
     return INode::pointer(ccsel);
 }
 
-WireCell::INode::pointer make_cellslicesink()
+void dump_to_bee_json(const std::string& filename, const ICellSliceSet& slices)
 {
-    return INode::pointer(new CellSliceSink);
+    const double drift_velocity = 1.6 * units::mm / units::microsecond;
+    ofstream fstr(filename.c_str());
+    fstr << "{\n";
+
+    fstr << "\"x\":[";
+    string comma = "";
+    for (auto slice : slices) {
+	if (!slice) { continue; }
+	auto cells = slice->cells();
+	if (!cells) { continue; }
+	for (auto cell : *cells) {
+	    double x = (slice->time() * drift_velocity) / units::cm;
+	    fstr << comma << x;
+	    comma = ", ";
+	}
+    }
+    fstr << "],\n";
+
+    string xyz="xyz";
+    for (int ind=1; ind<3; ++ind) {
+	fstr << "\"" << xyz[ind] << "\":[";
+	string comma = "";
+	for (auto slice : slices) {
+	    if (!slice) { continue; }
+	    auto cells = slice->cells();
+	    if (!cells) { continue; }
+	    for (auto cell : *cells) {
+		double yz = cell->center()[ind] / units::cm;
+		fstr << comma << yz;
+		comma = ", ";
+	    }
+	}
+	fstr << "],\n";
+    }
+    fstr << "\"type\":\"test_tbb_dfp\"\n";
+    fstr << "}\n";
 }
 
 int main(int argc, char* argv[])
@@ -189,8 +225,10 @@ int main(int argc, char* argv[])
     WireCell::INode::pointer psmerger = make_psmerger();
     WireCell::INode::pointer digitizer = make_digitizer(wires); // fixme: how to pass these in
     WireCell::INode::pointer ccselector = make_ccselector(cells); // fixme: ibid
-    WireCell::INode::pointer cssink = make_cellslicesink();
 
+    // special as we wanna use the real type 'cause we are lazy.
+    auto cssptr = new CellSliceSink;
+    WireCell::INode::pointer cssink(cssptr);
 
     cerr << "Connecting data flow graph:\n";
 
@@ -243,5 +281,9 @@ int main(int argc, char* argv[])
     cout << "Digitizer:" << digitizer->nin() << "/" << digitizer->nout() << endl;
     cout << "CellSelector:" << ccselector->nin() << "/" << ccselector->nout() << endl;
     
+
+    dump_to_bee_json("test_tbb_dfp.json", cssptr->slices());
+
     return 0;
 }
+
