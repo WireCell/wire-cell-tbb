@@ -82,20 +82,20 @@ int main()
 
     tbb::flow::graph graph;
 
-    tbb::flow::graph_node* node = depo_source_maker.make_node(graph, td);
+    WireCellTbb::INodeWrapper* node_wrapper = depo_source_maker.make_node_wrapper(graph, td);
 
 
-    // for expediency and testing we make some bare tbb nodes:
-    tbb::flow::function_node<depo_pointer, depo_pointer> depo_chirp_node_sync(graph, 1, depo_chirp("sync "));
-    tbb::flow::function_node<depo_pointer, depo_pointer> depo_chirp_node_async(graph, tbb::flow::unlimited, depo_chirp("async", 20));
+    // // for expediency and testing we make some bare tbb nodes:
+    // tbb::flow::function_node<depo_pointer, depo_pointer> depo_chirp_node_sync(graph, 1, depo_chirp("sync "));
+    // tbb::flow::function_node<depo_pointer, depo_pointer> depo_chirp_node_async(graph, tbb::flow::unlimited, depo_chirp("async", 20));
 
-    // emulate abstract connect method
-    tbb::flow::source_node<depo_pointer>* depo_source_node = dynamic_cast<tbb::flow::source_node<depo_pointer>*>(node);
-    Assert(depo_source_node);
-    make_edge(*depo_source_node, depo_chirp_node_sync);
-    make_edge(*depo_source_node, depo_chirp_node_async);
-    depo_source_node->activate();
-    graph.wait_for_all();
+    // // emulate abstract connect method
+    // tbb::flow::source_node<depo_pointer>* depo_source_node = dynamic_cast<tbb::flow::source_node<depo_pointer>*>(node);
+    // Assert(depo_source_node);
+    // make_edge(*depo_source_node, depo_chirp_node_sync);
+    // make_edge(*depo_source_node, depo_chirp_node_async);
+    // depo_source_node->activate();
+    // graph.wait_for_all();
 
     return 0;
 }
