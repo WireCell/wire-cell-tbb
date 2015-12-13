@@ -49,8 +49,30 @@ namespace WireCellTbb {
     };
 
     //
-    // node wrapper
+    // node wrapper - holds input/output port wrappers
     //
+
+    class NodeWrapper {
+	port_vector m_in;
+	port_vector m_out;
+    public:
+	typedef std::vector<IPortWrapper*> port_vector;
+
+	NodeWrapper() {}
+	NodeWrapper(const port_vector& in, const port_vector& out) : m_in(in), m_out(out) {}
+	
+	//virtual std::string signature() { return typeid(void).name(); }
+
+	virtual port_vector sender_ports() {
+	    return m_out;
+	}
+	virtual port_vector receiver_ports() {
+	    return m_in;
+	}
+
+    };
+
+
 
     class INodeWrapper {
     public:
