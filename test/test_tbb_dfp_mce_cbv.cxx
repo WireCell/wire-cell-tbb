@@ -86,10 +86,8 @@ WireCell::INode::pointer get_node(const std::string& node_desc)
 
 typedef tbb::flow::sender<boost::any>		sender_type;
 typedef tbb::flow::receiver<boost::any>		receiver_type;
-typedef std::shared_ptr<sender_type>		sender_port_pointer;
-typedef std::shared_ptr<receiver_type>		receiver_port_pointer;
-typedef std::vector<sender_port_pointer>	sender_port_vector;
-typedef std::vector<receiver_port_pointer>	receiver_port_vector;
+typedef std::vector<sender_type*>		sender_port_vector;
+typedef std::vector<receiver_type*>		receiver_port_vector;
 
 typedef tbb::flow::source_node<boost::any> source_node;
 typedef tbb::flow::function_node<boost::any> sink_node;
@@ -138,17 +136,20 @@ public:
 
 // implement facade to access ports for source nodes
 class TbbSourceNodeWrapper : public TbbNodeWrapper {
-    std::shared_ptr<source_node> m_tbbnode;
+    source_node* m_tbbnode;
 public:
     TbbSourceNodeWrapper(tbb::flow::graph& graph, WireCell::INode::pointer wcnode)
 	: m_tbbnode(new source_node(graph, TbbSourceBody(wcnode), false))
 	{    }
+    ~TbbSourceNodeWrapper() {
+	delete m_tbbnode;
+    }
     virtual void initialize() {
 	//cerr << "Activating source node\n";
 	m_tbbnode->activate();
     }
     virtual sender_port_vector sender_ports() {
-	auto ptr = dynamic_pointer_cast< sender_type >(m_tbbnode);
+	auto ptr = dynamic_cast< sender_type* >(m_tbbnode);
 	Assert(ptr);
 	return sender_port_vector{ptr};
     }
@@ -179,13 +180,16 @@ public:
 
 // implement facade to access ports for sink nodes
 class TbbSinkNodeWrapper : public TbbNodeWrapper {
-    std::shared_ptr<sink_node> m_tbbnode;
+    sink_node* m_tbbnode;
 public:
     TbbSinkNodeWrapper(tbb::flow::graph& graph, WireCell::INode::pointer wcnode) :
 	m_tbbnode(new sink_node(graph, wcnode->concurrency(), TbbSinkBody(wcnode))) { }
+    ~TbbSinkNodeWrapper() {
+	delete m_tbbnode;
+    }
 
     virtual receiver_port_vector receiver_ports() {
-	auto ptr = dynamic_pointer_cast< receiver_type >(m_tbbnode);
+	auto ptr = dynamic_cast< receiver_type* >(m_tbbnode);
 	Assert(ptr);
 	return receiver_port_vector{ptr};
     }
@@ -220,31 +224,32 @@ public:
     }
 };
 class TbbMultioutWrapper : public TbbNodeWrapper {
-    std::shared_ptr<queued_node> m_tbbnode;
-    std::weak_ptr<sender_type> m_sender;
+    queued_node* m_tbbnode;
 public:
     TbbMultioutWrapper(tbb::flow::graph& graph, WireCell::INode::pointer wcnode)
 	: m_tbbnode(new queued_node(graph, wcnode->concurrency(), TbbMultioutBody(wcnode)))
-	, m_sender(&tbb::flow::output_port<0>(*m_tbbnode))
 	{ }
     virtual ~TbbMultioutWrapper() {
 	cerr << "TbbMultioutBody: Destructing\n";
-	cerr << "\t#queued_node=" << m_tbbnode.use_count() << endl;
-	cerr << "\t#     sender=" << m_sender.use_count() << endl;
+	delete m_tbbnode;
     }
     
     virtual receiver_port_vector receiver_ports() {
-	auto ptr = dynamic_pointer_cast< receiver_type >(m_tbbnode);
+	auto ptr = dynamic_cast< receiver_type* >(m_tbbnode);
 	Assert(ptr);
 	return receiver_port_vector{ptr};
     }
 
     virtual sender_port_vector sender_ports() {
-	return sender_port_vector{m_sender};
+	auto ptr = &tbb::flow::output_port<0>(*m_tbbnode);
+	return sender_port_vector{ptr};
     }
 };
 
 
+
+
+// lookup WC node based on description, return wrapped node.
 TbbNode make_node(tbb::flow::graph& graph, const std::string& node_desc)
 {
     using namespace WireCell;
@@ -282,8 +287,8 @@ bool connect(TbbNode sender, TbbNode receiver, int sport, int rport)
     Assert(sports.size() > sport);
     Assert(rports.size() > rport);
     
-    sender_type* s = sports[sport].get();
-    receiver_type* r = rports[rport].get();
+    sender_type* s = sports[sport];
+    receiver_type* r = rports[rport];
     Assert(s);
     Assert(r);
 
