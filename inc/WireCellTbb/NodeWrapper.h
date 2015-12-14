@@ -53,8 +53,6 @@ namespace WireCellTbb {
     //
 
     class NodeWrapper {
-	port_vector m_in;
-	port_vector m_out;
     public:
 	typedef std::vector<IPortWrapper*> port_vector;
 
@@ -69,6 +67,9 @@ namespace WireCellTbb {
 	virtual port_vector receiver_ports() {
 	    return m_in;
 	}
+    private:
+	port_vector m_in;
+	port_vector m_out;
 
     };
 

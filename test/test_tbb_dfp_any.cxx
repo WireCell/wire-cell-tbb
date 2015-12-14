@@ -1,82 +1,94 @@
-// A minimally complete example of a tbb dfp
-
-//#include "WireCellTbb/NodeWrapper.h"
-
-#include "WireCellIface/IDepoSource.h"
-#include "WireCellIface/IDrifter.h"
-#include "WireCellIface/IDepoSink.h"
-#include "WireCellIface/SimpleDepo.h"
+// A minimally complete example of a tbb dfp that only deals in boost::any.
 
 #include "WireCellUtil/Testing.h"
 
 #include <tbb/flow_graph.h>
+#include <boost/any.hpp>
 
 #include <string>
 #include <deque>
 #include <iostream>
 using namespace std;
 
-class MockDepoSource : public WireCell::IDepoSource {
-    int m_count;
-    const int m_maxdepos;
+// mock INode categories
+enum NodeCategory {
+    unknownCat, sourceCat, sinkCat, functionCat,
+};
+
+class MockNode {
 public:
-    MockDepoSource(int maxdepos = 10) : m_count(0), m_maxdepos(maxdepos) {}
-    virtual ~MockDepoSource() {}
-    virtual bool extract(output_pointer& out) {
+    virtual ~MockNode() {}
+    virtual NodeCategory category() = 0;
+    virtual int concurrency() { return 0; }
+};
+
+// mock an INode::pointer
+typedef std::shared_ptr<MockNode> mock_node_pointer;
+
+
+
+class MockSource : public MockNode {
+    int m_count;
+    const int m_maxcount;
+public:
+    MockSource(int maxcount = 10) : m_count(0), m_maxcount(maxcount) {}
+    virtual ~MockSource() {}
+    virtual NodeCategory category() { return sourceCat; }
+    virtual bool extract(boost::any& out) {
 	cerr << "Source: " << m_count << endl;
-	if (m_count > m_maxdepos) {
-	    cerr << "ModeDepoSource drained\n";
+	if (m_count > m_maxcount) {
+	    cerr << "ModeSource drained\n";
 	    return false;
 	}
 	++m_count;
-	double dist = m_count*units::millimeter;
-	double time = m_count*units::microsecond;
-	WireCell::Point pos(dist,dist,dist);
-	out = WireCell::IDepo::pointer(new WireCell::SimpleDepo(time,pos));
+	out = m_count;
 	return true;
     }
 };
 
-class MockDrifter : public WireCell::IDrifter {
-    std::deque<input_pointer> m_depos;
+class MockFunction : public MockNode {
+    std::deque<int> m_numbers;
 public:
-    virtual ~MockDrifter() {}
-    virtual bool insert(const input_pointer& depo) {
-	m_depos.push_back(depo);
+    virtual ~MockFunction() {}
+    virtual NodeCategory category() { return functionCat; }
+    virtual bool insert(boost::any& anyin) {
+	int num = boost::any_cast<int>(anyin);
+	m_numbers.push_back(num);
 	return true;
     }
-    virtual bool extract(output_pointer& depo) {
-	if (m_depos.empty()) {
+    virtual bool extract(boost::any& anyout) {
+	if (m_numbers.empty()) {
 	    return false;
 	}
-	depo = m_depos.front();
-	m_depos.pop_front();
+	anyout = m_numbers.front();
+	m_numbers.pop_front();
 	return true;
     }
 };
 
-class MockDepoSink : public WireCell::IDepoSink {
+class MockSink : public MockNode {
 public:
-    virtual ~MockDepoSink() {}
-    virtual bool insert(const input_pointer& depo) {
-	cerr << "Depo sunk: " << depo->time() << " " << depo->pos() << endl;
+    virtual ~MockSink() {}
+    virtual NodeCategory category() { return sinkCat; }
+    virtual bool insert(const boost::any& anyin) {
+	int num = boost::any_cast<int>(anyin);
+	cerr << "Sunk number " << num << endl;
     }    
 };
 
 // fixme: this fakes the factory until we clean up nodes to allow
 // empty c'tor and use configuration.
-WireCell::INode::pointer get_node(const std::string& node_desc)
+mock_node_pointer get_node(const std::string& node_desc)
 {
-    using namespace WireCell;
 
     if (node_desc == "source") { // note actual desc should be class or class:inst
-	return INode::pointer(new MockDepoSource);
+	return mock_node_pointer(new MockSource);
     }
     if (node_desc == "drift") { // note actual desc should be class or class:inst
-	return INode::pointer(new MockDrifter);
+	return mock_node_pointer(new MockFunction);
     }
     if (node_desc == "sink") { // note actual desc should be class or class:inst
-	return INode::pointer(new MockDepoSink);
+	return mock_node_pointer(new MockSink);
     }
     return nullptr;
 }
@@ -117,11 +129,9 @@ typedef std::shared_ptr<TbbNodeWrapper> TbbNode;
 
 // adapter to convert from WC source node to TBB source node body.
 class TbbSourceBody {
-    WireCell::ISourceNodeBase::pointer m_wcnode;
 public:
-
-    TbbSourceBody(WireCell::INode::pointer wcnode) {
-	m_wcnode = std::dynamic_pointer_cast<WireCell::ISourceNodeBase>(wcnode);
+    TbbSourceBody(mock_node_pointer wcnode) {
+	m_wcnode = std::dynamic_pointer_cast<MockSource>(wcnode);
 	Assert(m_wcnode);
     }
     TbbSourceBody( const TbbSourceBody& other) {
@@ -140,13 +150,15 @@ public:
 	cerr << "Extracting from " << m_wcnode << endl;
 	return m_wcnode->extract(out);
     }
+private:
+    std::shared_ptr<MockSource> m_wcnode;
+
 };
 
 // implement facade to access ports for source nodes
 class TbbSourceNodeWrapper : public TbbNodeWrapper {
-    std::shared_ptr<source_node> m_tbbnode;
 public:
-    TbbSourceNodeWrapper(tbb::flow::graph& graph, WireCell::INode::pointer wcnode)
+    TbbSourceNodeWrapper(tbb::flow::graph& graph, mock_node_pointer wcnode)
 	: m_tbbnode(new source_node(graph, TbbSourceBody(wcnode), false))
 	{    }
 
@@ -160,6 +172,8 @@ public:
 	Assert(ptr);
 	return sender_port_vector{ptr};
     }
+private:
+    std::shared_ptr<source_node> m_tbbnode;
 };
 
 
@@ -170,11 +184,10 @@ public:
 
 // adapter to convert from WC sink node to TBB sink node body.
 class TbbSinkBody {
-    WireCell::ISinkNodeBase::pointer m_wcnode;
 public:
 
-    TbbSinkBody(WireCell::INode::pointer wcnode) {
-	m_wcnode = std::dynamic_pointer_cast<WireCell::ISinkNodeBase>(wcnode);
+    TbbSinkBody(mock_node_pointer wcnode) {
+	m_wcnode = std::dynamic_pointer_cast<MockSink>(wcnode);
 	Assert(m_wcnode);
     }
     TbbSinkBody( const TbbSinkBody& other) {
@@ -194,32 +207,34 @@ public:
 	m_wcnode->insert(in);
 	return in;
     }
-    
+private:    
+    std::shared_ptr<MockSink> m_wcnode;
 };
 
 
 
 // implement facade to access ports for sink nodes
 class TbbSinkNodeWrapper : public TbbNodeWrapper {
-    std::shared_ptr<sink_node> m_tbbnode;
 public:
-    TbbSinkNodeWrapper(tbb::flow::graph& graph, WireCell::INode::pointer wcnode) :
-	m_tbbnode(new sink_node(graph, wcnode->concurrency(), TbbSinkBody(wcnode))) { }
+    TbbSinkNodeWrapper(tbb::flow::graph& graph, mock_node_pointer wcnode)
+	: m_tbbnode(new sink_node(graph, wcnode->concurrency(), TbbSinkBody(wcnode)))
+	{    }
 
     virtual receiver_port_vector receiver_ports() {
 	auto ptr = dynamic_pointer_cast< receiver_type >(m_tbbnode);
 	Assert(ptr);
 	return receiver_port_vector{ptr};
     }
+private:
+    std::shared_ptr<sink_node> m_tbbnode;
+
 };
 
 
 
 TbbNode make_node(tbb::flow::graph& graph, const std::string& node_desc)
 {
-    using namespace WireCell;
-
-    INode::pointer wcnode = get_node(node_desc);
+    mock_node_pointer wcnode = get_node(node_desc);
     if (! wcnode) {
 	cerr << "Failed to get node for " << node_desc << endl; 
 	return nullptr;
@@ -227,12 +242,12 @@ TbbNode make_node(tbb::flow::graph& graph, const std::string& node_desc)
 
     cerr << "Getting node from category: " << wcnode->category() << endl;
     switch (wcnode->category()) {
-    case INode::sourceNode: 
+    case sourceCat:
 	return TbbNode(new TbbSourceNodeWrapper(graph, wcnode));
-    case INode::sinkNode:
+    case sinkCat:
     	return TbbNode(new TbbSinkNodeWrapper(graph, wcnode));
-    // case INode::functionNode:
-    // 	return wrap_function(graph, wcnode);
+    // case functionCat:
+    // 	return TbbNode(new TbbFunctionNodeWrapper(garph, wcnode));
     default:
 	return nullptr;
     }
