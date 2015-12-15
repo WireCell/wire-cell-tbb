@@ -1,0 +1,20 @@
+#+TITLE: Wire Cell Interface to TBB flow graph
+
+* Nodes
+
+TBB [[https://www.threadingbuildingblocks.org/docs/help/tbb_userguide/Predifined_Node_Types.htm#predefined_node_types][node types]]:
+
+- =source_node= :: ( [[https://www.threadingbuildingblocks.org/docs/help/reference/flow_graph/source_node_cls.htm][ref]] [[https://www.threadingbuildingblocks.org/docs/help/tbb_userguide/use_source_node.htm][ex]] ) takes body object, activation
+- =function_node= :: ( [[https://www.threadingbuildingblocks.org/docs/help/reference/flow_graph/func_node_cls.htm][ref]] [[https://www.threadingbuildingblocks.org/docs/help/tbb_userguide/Nodes.htm][ex]] ) takes body object, concurrency limit, buffered input by default.
+- =multifunction_node= :: ( [[https://www.threadingbuildingblocks.org/docs/help/reference/flow_graph/multifunc_node_cls.htm][ref]] ) templated, =typedef= on in/out types.  Out is a =tbb::flow::tuple= which is a =std::tuple=, takes a body which is given a collection of output ports into which it may put actual output.
+- =composite_node= :: ( [[https://www.threadingbuildingblocks.org/docs/help/reference/flow_graph/composite_node_cls.htm][ref]] ) N-to-M external ports encapsulating a sub-graph of internal nodes
+- =join_node= :: ( [[https://www.threadingbuildingblocks.org/docs/help/reference/flow_graph/join_node_cls.htm][ref]] ) queued input (by default), sends tuple
+
+Every TBB Node has 
+
+- number and types of input ports
+- number and types of output ports
+
+TBB Body has
+
+- calling signature
