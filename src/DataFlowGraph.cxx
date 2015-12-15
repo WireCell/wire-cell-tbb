@@ -1,13 +1,6 @@
-#include "WireCellTbb/DataFlowGraph.h"
 
-#include "WireCellIface/IDepoSource.h"
-#include "WireCellIface/IDrifter.h"
-#include "WireCellIface/IDiffuser.h"
-#include "WireCellIface/IPlaneDuctor.h"
-#include "WireCellIface/IPlaneSliceMerger.h"
-#include "WireCellIface/IDigitizer.h"
-#include "WireCellIface/IChannelCellSelector.h"
-#include "WireCellIface/ICellSliceSink.h"
+
+#include "WireCellTbb/DataFlowGraph.h"
 
 #include "WireCellUtil/Type.h"
 
@@ -17,31 +10,13 @@ using namespace std;
 using namespace WireCell;
 using namespace WireCellTbb;
 
+
+
 DataFlowGraph::DataFlowGraph(int max_threads)
     : m_sched(max_threads > 0 ? max_threads : tbb::task_scheduler_init::automatic)
     , m_graph()
+    , m_factory(m_graph)
 {
-    // fixme: must add one of these lines for each INode interface.
-    // It is here that we bind node behavior and node signature.
-    // Behavior is set knowing the type of node interface (ISourceNode, etc).
-    // Maybe there is some way to make this done covariantly?
-    add_maker(new SourceNodeMaker<IDepoSource>);
-    add_maker(new BufferNodeMaker<IDrifter>);
-    add_maker(new BufferNodeMaker<IDiffuser>);
-    add_maker(new BufferNodeMaker<IPlaneDuctor>);
-    add_maker(new JoinNodeMaker<IPlaneSliceMerger>);
-    add_maker(new FunctionNodeMaker<IDigitizer>);
-    add_maker(new FunctionNodeMaker<IChannelCellSelector>);
-    add_maker(new SinkNodeMaker<ICellSliceSink>);
-    
-
-    // fixme: must add one of these lines for each IData interface
-    add_connector(new NodeConnector<IDepo>);
-    add_connector(new NodeConnector<IDiffusion>);
-    add_connector(new NodeConnector<IPlaneSlice>);
-    add_connector(new NodeConnector<IPlaneSlice::vector>);
-    add_connector(new NodeConnector<IChannelSlice>);
-    add_connector(new NodeConnector<ICellSlice>);
 }
 
 DataFlowGraph::~DataFlowGraph()
@@ -51,105 +26,58 @@ DataFlowGraph::~DataFlowGraph()
 bool DataFlowGraph::connect(INode::pointer tail, INode::pointer head,
 			    int sport, int rport)
 {
-    auto outs = tail->output_types();
-    auto ins = head->input_types();
+    using namespace WireCellTbb;
 
-    if (0 > sport || sport >= outs.size()) {
-	cerr << "DataFlowGraph: failed to connect tail with " << outs.size() << " output ports\n";
-	return false;
-    } 
-    if (0 > rport || rport >= ins.size()) { 
-	cerr << "DataFlowGraph: failed to connect head with " << ins.size() << " input ports\n";
-	return false; 
-    } 
-
-    auto conn = get_connector(ins[rport]);
-    if (!conn) {
-	cerr << "DataFlowGraph: no connector for port type \"" << demangle(ins[rport]) << "\"\n";
+    Node mytail = m_factory(tail);
+    if (!mytail) {
+	cerr << "DFP: failed to get tail node wrapper\n";
 	return false;
     }
 
-    auto s = get_node_wrapper(tail);
-    auto r = get_node_wrapper(head);
+    Node myhead = m_factory(head);
+    if (!mytail) {
+	cerr << "DFP: failed to get head node wrapper\n";
+	return false;
+    }
 
+    auto sports = mytail->sender_ports();
+    if (sport < 0 || sports.size() <= sport) {
+	cerr << "DFP: bad sender port number: " << sport << endl;
+	return false;
+    }
+
+    auto rports = myhead->receiver_ports();
+    if (rport < 0 || rports.size() <= rport) {
+	cerr << "DFP: bad receiver port number: " << rport << endl;
+	return false;
+    }
+
+    
+    sender_type* s = sports[sport];
     if (!s) {
-	cerr << "DataFlowGraph: failed to get tail node for \"" << demangle(outs[sport]) << "\"\n";
-	return false;
-    }
-    if (!r) {
-	cerr << "DataFlowGraph: failed to get head node for \"" << demangle(ins[rport]) << "\"\n";
+	cerr << "DFP: failed to get sender port " << sport << endl;
 	return false;
     }
 
-    bool ok = conn->connect(s,r,sport,rport);
-    if (!ok) {
-	cerr << "DataFlowGraph: failed to connect tail node: \""
-	     << demangle(tail->signature())
-	     << "\" to head node: \"" << demangle(head->signature())
-	     << "\" along port of type \"" << demangle(ins[rport]) << "\"\n";
+    receiver_type* r = rports[rport];
+    if (!s) {
+	cerr << "DFP: failed to get receiver port " << rport << endl;
+	return false;
     }
-    cerr << "DataFlowGraph: connected tail node: \""
-	 << demangle(tail->signature())
-	 << "\" to head node: \"" << demangle(head->signature())
-	 << "\" along port of type \"" << demangle(ins[rport]) << "\"\n";
 
-    return ok;
+
+    cerr << "Connecting " << s << " and " << r << endl;
+    make_edge(*s, *r);
+    return true;
 }
-
+    
 
 bool DataFlowGraph::run()
 {
-    for (auto it : m_node_wrappers) {
+    for (auto it : m_factory.seen()) {
 	it.second->initialize();
     }
     m_graph.wait_for_all();
     return true;
 }
 
-
-void DataFlowGraph::add_maker(INodeMaker* maker)
-{
-    cerr << "DataFlowGraph: adding maker for: \"" << demangle(maker->signature()) << "\"\n";
-    m_node_makers[maker->signature()] = maker;
-}
-void DataFlowGraph::add_connector(INodeConnector* connector)
-{
-    cerr << "DataFlowGraph: adding connector for: \"" << demangle(connector->port_type_name()) << "\"\n";
-    m_node_connectors[connector->port_type_name()] = connector;
-}
-
-INodeWrapper* DataFlowGraph::get_node_wrapper(WireCell::INode::pointer wcnode)
-{
-    auto nit = m_node_wrappers.find(wcnode);
-    if (nit != m_node_wrappers.end()) {
-	return nit->second;
-    }
-
-    auto mit = m_node_makers.find(wcnode->signature());
-    if (mit == m_node_makers.end()) {
-	cerr << "DataFlowGraph: failed to get node maker with signature: \"" << demangle(wcnode->signature()) << "\"\n";
-	return nullptr;
-    }
-
-    auto tbb_node_wrapper = mit->second->make_node_wrapper(m_graph, wcnode);
-    if (!tbb_node_wrapper) { 
-	cerr << "DataFlowGraph: failed to make node wrapper with signature: \"" << demangle(wcnode->signature()) << "\"\n";
-	return nullptr; 
-    }
-
-    cerr << "DataFlowGraph: made node wrapper with signature: \"" << demangle(wcnode->signature()) << "\"\n";
-
-    m_node_wrappers[wcnode] = tbb_node_wrapper;
-    return tbb_node_wrapper;
-}
-
-
-INodeConnector* DataFlowGraph::get_connector(const std::string& data_type_name)
-{
-    auto cit = m_node_connectors.find(data_type_name);
-    if (cit == m_node_connectors.end()) {
-	cerr << "DataFlowGraph: failed to get connector for type: \"" << demangle(data_type_name) << "\"\n";
-	return nullptr;
-    }
-    return cit->second;
-}

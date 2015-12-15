@@ -256,31 +256,6 @@ int main(int argc, char* argv[])
 
     dfp->run();
 
-    cout << "DepoSource: " << depo_source->nin() << "/" << depo_source->nout()
-	 << endl;
-
-    cout << "Drifter"
-	 << " U:" << drifterU->nin() << "/" << drifterU->nout()
-	 << " V:" << drifterV->nin() << "/" << drifterV->nout()
-	 << " W:" << drifterW->nin() << "/" << drifterW->nout()
-	 << endl;
-
-    cout << "Diffuser"
-	 << " U:" << diffuserU->nin() << "/" << diffuserU->nout()
-	 << " V:" << diffuserV->nin() << "/" << diffuserV->nout()
-	 << " W:" << diffuserW->nin() << "/" << diffuserW->nout()
-	 << endl;
-
-    cout << "Ductor"
-	 << " U:" << ductorU->nin() << "/" << ductorU->nout()
-	 << " V:" << ductorV->nin() << "/" << ductorV->nout()
-	 << " W:" << ductorW->nin() << "/" << ductorW->nout()
-	 << endl;
-
-    cout << "Merger:" << psmerger->nin() << "/" << psmerger->nout() << endl;
-    cout << "Digitizer:" << digitizer->nin() << "/" << digitizer->nout() << endl;
-    cout << "CellSelector:" << ccselector->nin() << "/" << ccselector->nout() << endl;
-    
 
     dump_to_bee_json("test_tbb_dfp.json", cssptr->slices());
 

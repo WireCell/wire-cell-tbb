@@ -2,8 +2,8 @@
 #define WIRECELLTBB_DATAFLOWGRAPH
 
 #include "WireCellIface/IDataFlowGraph.h"
-#include "WireCellTbb/NodeMaker.h"
-#include "WireCellTbb/NodeConnector.h"
+#include "WireCellTbb/NodeWrapper.h"
+#include "WireCellTbb/WrapperFactory.h"
 
 #include <tbb/task_scheduler_init.h>
 
@@ -13,12 +13,6 @@
 namespace WireCellTbb {
 
     class DataFlowGraph : public WireCell::IDataFlowGraph {
-	tbb::task_scheduler_init m_sched;
-	tbb::flow::graph m_graph;
-	std::map<std::string, INodeMaker*> m_node_makers;
-	std::map<std::string, INodeConnector*> m_node_connectors;
-	std::map<WireCell::INode::pointer, INodeWrapper*> m_node_wrappers;
-
     public:
 	DataFlowGraph(int max_threads = 0);
 	virtual ~DataFlowGraph();
@@ -31,14 +25,10 @@ namespace WireCellTbb {
 	/// Run the graph, return false on error.
 	virtual bool run();
 
-	void add_maker(INodeMaker* maker);
-	void add_connector(INodeConnector* connector);
-
     private:
-
-	INodeWrapper* get_node_wrapper(WireCell::INode::pointer wcnode);
-	INodeConnector* get_connector(const std::string& data_type_name);
-
+	tbb::task_scheduler_init m_sched; // pass in number of threads
+	tbb::flow::graph m_graph;	  // here lives the TBB graph
+	WrapperFactory m_factory;
     };
 
 }
