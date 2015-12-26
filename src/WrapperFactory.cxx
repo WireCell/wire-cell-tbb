@@ -1,6 +1,7 @@
 #include "WireCellTbb/WrapperFactory.h"
 #include "WireCellTbb/SourceCat.h"
 #include "WireCellTbb/SinkCat.h"
+#include "WireCellTbb/JoinCat.h"
 #include "WireCellTbb/QueuedoutCat.h"
 
 using namespace WireCell;
@@ -14,6 +15,8 @@ WrapperFactory::WrapperFactory(tbb::flow::graph& graph)
     bind_maker<SourceNodeWrapper>(INode::sourceNode);
     bind_maker<SinkNodeWrapper>(INode::sinkNode);
     bind_maker<QueuedoutWrapper>(INode::queuedoutNode);
+    bind_maker<JoinWrapper>(INode::joinNode);
+    // fixme: add join, function, ...
 }
 
 Node WrapperFactory::operator()(INode::pointer wcnode)

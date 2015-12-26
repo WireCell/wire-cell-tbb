@@ -30,13 +30,15 @@ bool DataFlowGraph::connect(INode::pointer tail, INode::pointer head,
 
     Node mytail = m_factory(tail);
     if (!mytail) {
-	cerr << "DFP: failed to get tail node wrapper\n";
+	cerr << "DFP: failed to get tail node wrapper for "
+	     << demangle(tail->signature()) << endl;
 	return false;
     }
 
     Node myhead = m_factory(head);
-    if (!mytail) {
-	cerr << "DFP: failed to get head node wrapper\n";
+    if (!myhead) {
+	cerr << "DFP: failed to get head node wrapper for "
+	     << demangle(head->signature()) << endl;
 	return false;
     }
 

@@ -9,7 +9,6 @@
 
 namespace WireCellTbb {
 
-
     // the "tuple" which is just length 1.
     typedef tbb::flow::tuple<boost::any> monotuple;
     // the TBB node type
@@ -33,8 +32,8 @@ namespace WireCellTbb {
 	}
     };
     class QueuedoutWrapper : public NodeWrapper {
-	queuedout_node* m_tbbnode;
     public:
+
 	QueuedoutWrapper(tbb::flow::graph& graph, WireCell::INode::pointer wcnode)
 	    : m_tbbnode(new queuedout_node(graph, wcnode->concurrency(), QueuedoutBody(wcnode)))
 	    { }
@@ -51,6 +50,8 @@ namespace WireCellTbb {
 	    auto ptr = &tbb::flow::output_port<0>(*m_tbbnode);
 	    return sender_port_vector{ptr};
 	}
+    private:
+	queuedout_node* m_tbbnode;
     };
 
 }
