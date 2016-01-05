@@ -6,8 +6,6 @@
 
 namespace WireCellTbb {
 
-    typedef tbb::flow::function_node<boost::any> sink_node;
-
     // adapter to convert from WC sink node to TBB sink node body.
     class SinkBody {
 	WireCell::ISinkNodeBase::pointer m_wcnode;

@@ -9,11 +9,6 @@
 
 namespace WireCellTbb {
 
-    // the "tuple" which is just length 1.
-    typedef tbb::flow::tuple<boost::any> monotuple;
-    // the TBB node type
-    typedef tbb::flow::multifunction_node<boost::any, monotuple> queuedout_node;
-    typedef queuedout_node::output_ports_type queuedout_port;
 
     class QueuedoutBody {
 	WireCell::IQueuedoutNodeBase::pointer m_wcnode;

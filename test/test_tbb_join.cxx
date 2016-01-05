@@ -1,3 +1,10 @@
+/**
+   This is a generic (no WC) test of how one can use the
+   tbb::flow::join_node in a way that breaks out the input ports of
+   the node into a std::vector.  This test patterns needed to make the
+   graph edges in a dynamic rather than static/compiled manner.
+ */
+
 #include <tbb/flow_graph.h>
 
 #include <iostream>

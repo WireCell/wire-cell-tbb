@@ -17,6 +17,19 @@ namespace WireCellTbb {
     typedef std::vector<sender_type*>		sender_port_vector;
     typedef std::vector<receiver_type*>		receiver_port_vector;
 
+    typedef std::vector<boost::any>		any_vector;
+
+    typedef std::tuple<boost::any>				any_single;
+    typedef std::tuple<boost::any,boost::any>			any_double;
+    typedef std::tuple<boost::any,boost::any,boost::any>	any_triple;
+
+    /// Types for TBB nodes
+    typedef tbb::flow::source_node<boost::any>			source_node;
+    typedef tbb::flow::function_node<boost::any>		sink_node;
+    typedef tbb::flow::function_node<boost::any,boost::any>	function_node;
+    typedef tbb::flow::multifunction_node<boost::any,any_single> queuedout_node;
+    typedef queuedout_node::output_ports_type			queuedout_port;
+
 
     // A base facade which expose sender/receiver ports and provide
     // initialize hook.  There is one NodeWrapper for each node

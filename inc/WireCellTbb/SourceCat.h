@@ -8,9 +8,6 @@
 
 namespace WireCellTbb {
 
-    // The TBB node type for this category.
-    typedef tbb::flow::source_node<boost::any> source_node;
-
 
     // adapter to convert from WC source node to TBB source node body.
     class SourceBody {
