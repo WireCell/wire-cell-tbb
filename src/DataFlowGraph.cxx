@@ -23,6 +23,24 @@ DataFlowGraph::~DataFlowGraph()
 {
 }
 
+Configuration DataFlowGraph::default_configuration() const
+{
+    std::string json = R"(
+{
+"max_threads":1
+}
+)";
+    return configuration_loads(json, "json");
+}
+
+
+void DataFlowGraph::configure(const Configuration& cfg)
+{
+    int maxthreads = get<int>(cfg,"max_threads");
+    // fixme: now what?
+}
+
+
 bool DataFlowGraph::connect(INode::pointer tail, INode::pointer head,
 			    int sport, int rport)
 {

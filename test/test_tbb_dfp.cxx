@@ -2,7 +2,7 @@
 
 #include "WireCellIface/IDepoSource.h"
 #include "WireCellIface/IWireParameters.h"
-#include "WireCellIface/IWireGenerator.h"
+#include "WireCellIface/IWireSource.h"
 #include "WireCellIface/IWire.h"
 #include "WireCellIface/ICell.h"
 
@@ -75,6 +75,8 @@ WireCell::INode::pointer make_depo() {
 }
 
 
+
+
 // cheats:
 // Eventually each node will be given a "geometry" object from which to get the wire parameters.
 // Eventually a drifter will be configured with a layer.
@@ -128,10 +130,9 @@ INode::pointer make_psmerger()
     return INode::pointer(new PlaneSliceMerger());
 }
 
-INode::pointer make_digitizer(const IWire::shared_vector& wires)
+INode::pointer make_digitizer()
 {
     Digitizer* digi = new Digitizer;
-    digi->set_wires(wires);
     return INode::pointer(digi);
 }
 
@@ -184,47 +185,48 @@ void dump_to_bee_json(const std::string& filename, const ICellSliceSet& slices)
 
 int main(int argc, char* argv[])
 {
-    PluginManager& pm = PluginManager::instance();
-    pm.add("WireCellGen");
-
-    // set up wires and cells
-    auto wire_param = WireCell::Factory::lookup<IWireParameters>("WireParams");
-    auto wire_gen = WireCell::Factory::lookup<IWireGenerator>("WireGenerator");
-    IWireGenerator::output_pointer wires;
-    bool ok = (*wire_gen)(wire_param, wires);
-    Assert(ok);
-    auto bc = WireCell::Factory::lookup<ICellMaker>("BoundCells");
-    Assert(bc);
-    ICellMaker::output_pointer cells;
-    ok = (*bc)(wires, cells);
-    Assert(ok);
-    
     int max_threads = 0;
     if (argc>2) {
 	max_threads = atoi(argv[1]);
     }
 
-    // emulate NF lookup
+    PluginManager& pm = PluginManager::instance();
+    pm.add("WireCellGen");
+
+    // fixme: still faking NF lookup for DFP object
     WireCell::IDataFlowGraph* dfp = new WireCellTbb::DataFlowGraph(max_threads);
+
+    WireCell::INode::pointer wire_source = WireCell::Factory::lookup<IWireSource>("WireSource");
+    WireCell::INode::pointer cell_maker = WireCell::Factory::lookup<ICellMaker>("BoundCells");
 
     // emulate NF lookup and initialization
     WireCell::INode::pointer depo_source = make_depo();
 
-    WireCell::INode::pointer drifterU = make_drifter(wire_param, WireCell::kUlayer);
-    WireCell::INode::pointer drifterV = make_drifter(wire_param, WireCell::kVlayer);
-    WireCell::INode::pointer drifterW = make_drifter(wire_param, WireCell::kWlayer);
+    WireCell::INode::pointer drifterU = WireCell::Factory::lookup<IDrifter>("Drifter","DrifterU");
+    WireCell::INode::pointer drifterV = WireCell::Factory::lookup<IDrifter>("Drifter","DrifterV");
+    WireCell::INode::pointer drifterW = WireCell::Factory::lookup<IDrifter>("Drifter","DrifterW");
+    //WireCell::INode::pointer drifterU = make_drifter(wire_param, WireCell::kUlayer);
+    //WireCell::INode::pointer drifterV = make_drifter(wire_param, WireCell::kVlayer);
+    //WireCell::INode::pointer drifterW = make_drifter(wire_param, WireCell::kWlayer);
 
-    WireCell::INode::pointer diffuserU = make_diffuser(wire_param, WireCell::kUlayer);
-    WireCell::INode::pointer diffuserV = make_diffuser(wire_param, WireCell::kVlayer);
-    WireCell::INode::pointer diffuserW = make_diffuser(wire_param, WireCell::kWlayer);
+    WireCell::INode::pointer diffuserU = WireCell::Factory::lookup<IDiffuser>("Diffuser","DiffuserU");
+    WireCell::INode::pointer diffuserV = WireCell::Factory::lookup<IDiffuser>("Diffuser","DiffuserV");
+    WireCell::INode::pointer diffuserW = WireCell::Factory::lookup<IDiffuser>("Diffuser","DiffuserW");
+    // WireCell::INode::pointer diffuserU = make_diffuser(wire_param, WireCell::kUlayer);
+    // WireCell::INode::pointer diffuserV = make_diffuser(wire_param, WireCell::kVlayer);
+    // WireCell::INode::pointer diffuserW = make_diffuser(wire_param, WireCell::kWlayer);
 
-    WireCell::INode::pointer ductorU = make_ductor(wire_param, wires, WireCell::kUlayer);
-    WireCell::INode::pointer ductorV = make_ductor(wire_param, wires, WireCell::kVlayer);
-    WireCell::INode::pointer ductorW = make_ductor(wire_param, wires, WireCell::kWlayer);
+    WireCell::INode::pointer ductorU = WireCell::Factory::lookup<IPlaneDuctor>("PlaneDuctor", "PlaneDuctorU");
+    WireCell::INode::pointer ductorV = WireCell::Factory::lookup<IPlaneDuctor>("PlaneDuctor", "PlaneDuctorV");
+    WireCell::INode::pointer ductorW = WireCell::Factory::lookup<IPlaneDuctor>("PlaneDuctor", "PlaneDuctorW");
+    // WireCell::INode::pointer ductorU = make_ductor(wire_param, wires, WireCell::kUlayer);
+    // WireCell::INode::pointer ductorV = make_ductor(wire_param, wires, WireCell::kVlayer);
+    // WireCell::INode::pointer ductorW = make_ductor(wire_param, wires, WireCell::kWlayer);
 
-    WireCell::INode::pointer psmerger = make_psmerger();
-    WireCell::INode::pointer digitizer = make_digitizer(wires); // fixme: how to pass these in
-    WireCell::INode::pointer ccselector = make_ccselector(cells); // fixme: ibid
+    WireCell::INode::pointer psmerger = WireCell::Factory::lookup<IPlaneSliceMerger>("PlaneSliceMerger");
+    WireCell::INode::pointer digitizer = WireCell::Factory::lookup<IDigitizer>("Digitizer");
+    WireCell::INode::pointer ccselector = WireCell::Factory::lookup<IChannelCellSelector>("ChannelCellSelector");
+    //WireCell::INode::pointer ccselector = make_ccselector(cells); // fixme: how to pass these in
 
     // special as we wanna use the real type 'cause we are lazy.
     auto cssptr = new CellSliceSink;

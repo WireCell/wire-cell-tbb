@@ -17,6 +17,7 @@ WrapperFactory::WrapperFactory(tbb::flow::graph& graph)
     bind_maker<SinkNodeWrapper>(INode::sinkNode);
     bind_maker<QueuedoutWrapper>(INode::queuedoutNode);
     bind_maker<JoinWrapper>(INode::joinNode);
+    bind_maker<JoinWrapper>(INode::faninNode);
     bind_maker<FunctionWrapper>(INode::functionNode);
 //    bind_maker<HydraWrapper>(INode::hydraNode);
     // fixme: add more ...

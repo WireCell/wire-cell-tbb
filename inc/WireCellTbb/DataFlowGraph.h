@@ -2,6 +2,7 @@
 #define WIRECELLTBB_DATAFLOWGRAPH
 
 #include "WireCellIface/IDataFlowGraph.h"
+#include "WireCellIface/IConfigurable.h"
 #include "WireCellTbb/NodeWrapper.h"
 #include "WireCellTbb/WrapperFactory.h"
 
@@ -12,7 +13,7 @@
 
 namespace WireCellTbb {
 
-    class DataFlowGraph : public WireCell::IDataFlowGraph {
+    class DataFlowGraph : public WireCell::IDataFlowGraph, WireCell::IConfigurable {
     public:
 	DataFlowGraph(int max_threads = 0);
 	virtual ~DataFlowGraph();
@@ -24,6 +25,10 @@ namespace WireCellTbb {
 
 	/// Run the graph, return false on error.
 	virtual bool run();
+
+
+	virtual void configure(const WireCell::Configuration& config);
+	virtual WireCell::Configuration default_configuration() const;
 
     private:
 	tbb::task_scheduler_init m_sched; // pass in number of threads
