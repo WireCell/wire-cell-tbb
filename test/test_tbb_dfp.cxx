@@ -202,7 +202,8 @@ int main(int argc, char* argv[])
     WireCell::INode::pointer cell_maker = WireCell::Factory::lookup<ICellMaker>("BoundCells");
 
     // emulate NF lookup and initialization
-    WireCell::INode::pointer depo_source = make_depo();
+    //WireCell::INode::pointer depo_source = make_depo();
+    WireCell::INode::pointer depo_source = WireCell::Factory::lookup<IDepoSource>("TrackDepos");
 
     WireCell::INode::pointer drifterU = WireCell::Factory::lookup<IDrifter>("Drifter","DrifterU");
     WireCell::INode::pointer drifterV = WireCell::Factory::lookup<IDrifter>("Drifter","DrifterV");
