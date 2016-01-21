@@ -192,6 +192,8 @@ int main(int argc, char* argv[])
 
     PluginManager& pm = PluginManager::instance();
     pm.add("WireCellGen");
+    pm.add("WireCellTbb");
+    pm.add("WireCellAlg");
 
     // fixme: still faking NF lookup for DFP object
     WireCell::IDataFlowGraph* dfp = new WireCellTbb::DataFlowGraph(max_threads);

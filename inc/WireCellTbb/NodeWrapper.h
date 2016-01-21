@@ -2,6 +2,7 @@
 #define WIRECELLTBB_NODEWRAPPER
 
 #include "WireCellIface/INode.h"
+#include "WireCellUtil/TupleHelpers.h"
 
 #include <tbb/flow_graph.h>
 #include <boost/any.hpp>
@@ -48,6 +49,19 @@ namespace WireCellTbb {
 
     // expose the wrappers only as a shared pointer
     typedef std::shared_ptr<NodeWrapper> Node;
+
+
+    // internal
+    template<typename Tuple, std::size_t... Is>
+    receiver_port_vector receiver_ports(tbb::flow::join_node<Tuple>& jn, std::index_sequence<Is...>) {
+	return { dynamic_cast<receiver_type*>(&tbb::flow::input_port<Is>(jn))... };
+    }
+    /// Return receiver ports of a join node as a vector.
+    template<typename Tuple>
+    receiver_port_vector receiver_ports(tbb::flow::join_node<Tuple>& jn) {
+	return receiver_ports(jn, std::make_index_sequence<std::tuple_size<Tuple>::value>{});
+    }
+    
 }
 
 #endif
