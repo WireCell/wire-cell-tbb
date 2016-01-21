@@ -3,12 +3,16 @@
 #include "WireCellTbb/DataFlowGraph.h"
 
 #include "WireCellUtil/Type.h"
+#include "WireCellUtil/NamedFactory.h"
 
 #include <iostream>
+
+WIRECELL_FACTORY(TbbDataFlowGraph, WireCellTbb::DataFlowGraph, WireCell::IDataFlowGraph, WireCell::IConfigurable);
 
 using namespace std;
 using namespace WireCell;
 using namespace WireCellTbb;
+
 
 
 

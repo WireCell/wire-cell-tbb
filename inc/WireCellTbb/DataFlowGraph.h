@@ -13,7 +13,7 @@
 
 namespace WireCellTbb {
 
-    class DataFlowGraph : public WireCell::IDataFlowGraph, WireCell::IConfigurable {
+    class DataFlowGraph : public WireCell::IDataFlowGraph, public WireCell::IConfigurable {
     public:
 	DataFlowGraph(int max_threads = 0);
 	virtual ~DataFlowGraph();
