@@ -90,7 +90,7 @@ bool DataFlowGraph::connect(INode::pointer tail, INode::pointer head,
     }
 
 
-    cerr << "Connecting " << s << " and " << r << endl;
+    //cerr << "Connecting " << s << " and " << r << endl;
     make_edge(*s, *r);
     return true;
 }
@@ -99,6 +99,7 @@ bool DataFlowGraph::connect(INode::pointer tail, INode::pointer head,
 bool DataFlowGraph::run()
 {
     for (auto it : m_factory.seen()) {
+	cerr << "Initialize node of type: " << demangle(it.first->signature()) << endl;
 	it.second->initialize();
     }
     m_graph.wait_for_all();

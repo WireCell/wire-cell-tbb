@@ -139,7 +139,6 @@ INode::pointer make_digitizer()
 INode::pointer make_ccselector(const ICell::shared_vector& cells)
 {
     ChannelCellSelector* ccsel = new ChannelCellSelector;
-    ccsel->set_cells(cells);
     return INode::pointer(ccsel);
 }
 
@@ -229,7 +228,6 @@ int main(int argc, char* argv[])
     WireCell::INode::pointer psmerger = WireCell::Factory::lookup<IPlaneSliceMerger>("PlaneSliceMerger");
     WireCell::INode::pointer digitizer = WireCell::Factory::lookup<IDigitizer>("Digitizer");
     WireCell::INode::pointer ccselector = WireCell::Factory::lookup<IChannelCellSelector>("ChannelCellSelector");
-    //WireCell::INode::pointer ccselector = make_ccselector(cells); // fixme: how to pass these in
 
     // special as we wanna use the real type 'cause we are lazy.
     auto cssptr = new CellSliceSink;
@@ -255,6 +253,7 @@ int main(int argc, char* argv[])
 
     Assert( dfp->connect(psmerger, digitizer) );
     Assert( dfp->connect(digitizer, ccselector) );
+    Assert( dfp->connect(cell_maker, ccselector, 0, 1) );
     Assert( dfp->connect(ccselector, cssink) );
 
     //.... to be continued ...

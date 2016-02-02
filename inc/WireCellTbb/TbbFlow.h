@@ -4,11 +4,13 @@
 #include "WireCellIface/IApplication.h"
 #include "WireCellIface/IConfigurable.h"
 #include "WireCellIface/IDataFlowGraph.h"
+#include "WireCellUtil/DfpGraph.h"
 
 namespace WireCellTbb {
 
     class TbbFlow : public WireCell::IApplication, public WireCell::IConfigurable {
 	WireCell::IDataFlowGraph::pointer m_dfp;
+	WireCell::DfpGraph m_dfpgraph;
     public:
 	TbbFlow();
 	virtual ~TbbFlow();
