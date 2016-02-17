@@ -100,29 +100,41 @@ INode::pointer make_diffuser(IWireParameters::pointer wp, WireCell::WirePlaneLay
 
 // cheats:
 // ductor needs a lot of derived wire info.
-INode::pointer make_ductor(IWireParameters::pointer wp, const IWire::shared_vector& wires,
-			   WireCell::WirePlaneLayer_t layer)
+void config_ductor(WirePlaneId wpid)
 {
+    std::string uvw = "UVW";
+    std::string name = "PlaneDuctor";
 
-    auto pitch = wp->pitch(layer);
+    cerr << "Getting plane ductor for " << wpid << endl;
+    auto ductor = WireCell::Factory::lookup<IConfigurable>(name, name+uvw[wpid.index()]);
 
-    const double pitch_distance = ray_length(pitch);
-    const Vector pitch_unit = ray_unit(pitch);
-    WirePlaneId wpid(layer);
+    // only slightly nonbogus config, don't expect this to be meaningful
+    auto cfg = ductor->default_configuration();
+    cfg["wpid"][0] = wpid.ilayer();
+    cfg["wpid"][1] = 0;
+    cfg["wpid"][2] = 0;
+    cfg["nwires"] = 100;
+    ductor->configure(cfg);
 
-    // get this plane's wires sorted by index
-    IWire::vector plane_wires;
-    std::copy_if(wires->begin(), wires->end(),
-		 back_inserter(plane_wires), select_uvw_wires[wpid.index()]);
-    std::sort(plane_wires.begin(), plane_wires.end(), ascending_index);
+    // auto pitch = wp->pitch(layer);
 
-    // number of wires and location of wire zero measured in pitch coordinate.
-    const int nwires = plane_wires.size();
-    IWire::pointer wire_zero = plane_wires[0];
-    const Point to_wire = wire_zero->center() - pitch.first;
-    const double wire_zero_dist = pitch_unit.dot(to_wire);
+    // const double pitch_distance = ray_length(pitch);
+    // const Vector pitch_unit = ray_unit(pitch);
+    // WirePlaneId wpid(layer);
 
-    return INode::pointer(new PlaneDuctor(wpid, nwires, time_slice, pitch_distance, start_time, wire_zero_dist));
+    // // get this plane's wires sorted by index
+    // IWire::vector plane_wires;
+    // std::copy_if(wires->begin(), wires->end(),
+    // 		 back_inserter(plane_wires), select_uvw_wires[wpid.index()]);
+    // std::sort(plane_wires.begin(), plane_wires.end(), ascending_index);
+
+    // // number of wires and location of wire zero measured in pitch coordinate.
+    // const int nwires = plane_wires.size();
+    // IWire::pointer wire_zero = plane_wires[0];
+    // const Point to_wire = wire_zero->center() - pitch.first;
+    // const double wire_zero_dist = pitch_unit.dot(to_wire);
+
+    // return INode::pointer(new PlaneDuctor(wpid, nwires, time_slice, pitch_distance, start_time, wire_zero_dist));
 }
 
 INode::pointer make_psmerger()
@@ -194,6 +206,12 @@ int main(int argc, char* argv[])
     pm.add("WireCellTbb");
     pm.add("WireCellAlg");
 
+    config_ductor(WirePlaneId(kUlayer));
+    config_ductor(WirePlaneId(kVlayer));
+    config_ductor(WirePlaneId(kWlayer));
+
+
+
     // fixme: still faking NF lookup for DFP object
     WireCell::IDataFlowGraph* dfp = new WireCellTbb::DataFlowGraph(max_threads);
 
@@ -221,9 +239,6 @@ int main(int argc, char* argv[])
     WireCell::INode::pointer ductorU = WireCell::Factory::lookup<IPlaneDuctor>("PlaneDuctor", "PlaneDuctorU");
     WireCell::INode::pointer ductorV = WireCell::Factory::lookup<IPlaneDuctor>("PlaneDuctor", "PlaneDuctorV");
     WireCell::INode::pointer ductorW = WireCell::Factory::lookup<IPlaneDuctor>("PlaneDuctor", "PlaneDuctorW");
-    // WireCell::INode::pointer ductorU = make_ductor(wire_param, wires, WireCell::kUlayer);
-    // WireCell::INode::pointer ductorV = make_ductor(wire_param, wires, WireCell::kVlayer);
-    // WireCell::INode::pointer ductorW = make_ductor(wire_param, wires, WireCell::kWlayer);
 
     WireCell::INode::pointer psmerger = WireCell::Factory::lookup<IPlaneSliceMerger>("PlaneSliceMerger");
     WireCell::INode::pointer digitizer = WireCell::Factory::lookup<IDigitizer>("Digitizer");
