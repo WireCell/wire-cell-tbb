@@ -49,7 +49,10 @@ void TbbFlow::execute()
 	auto head_tn = get<1>(thc);
 	auto conn = get<2>(thc);
 
-	std::cerr << tail_tn.type << ":" << tail_tn.name << " ( " << conn.tail << " -> " << conn.head << " ) " << head_tn.type << ":" << head_tn.name << "\n";
+	std::cerr << "TbbFlow: Connect: "
+		  <<  tail_tn.type << ":" << tail_tn.name
+		  << " ( " << conn.tail << " -> " << conn.head << " ) "
+		  << head_tn.type << ":" << head_tn.name << "\n";
 
 	INode::pointer tail_node = WireCell::Factory::lookup<INode>(tail_tn.type, tail_tn.name);
 	INode::pointer head_node = WireCell::Factory::lookup<INode>(head_tn.type, head_tn.name);
