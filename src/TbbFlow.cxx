@@ -42,6 +42,11 @@ void TbbFlow::configure(const Configuration& cfg)
 
 void TbbFlow::execute()
 {
+    if (!m_dfp) {
+	std::cerr << "TbbFlow: not configured\n";
+	return;
+    }
+
     std::cerr << "TbbFlow::Execute\n";
 
     for (auto thc : m_dfpgraph.connections()) {
