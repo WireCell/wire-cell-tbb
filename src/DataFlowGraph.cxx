@@ -29,12 +29,9 @@ DataFlowGraph::~DataFlowGraph()
 
 Configuration DataFlowGraph::default_configuration() const
 {
-    std::string json = R"(
-{
-"max_threads":1
-}
-)";
-    return configuration_loads(json, "json");
+    Configuration cfg;
+    cfg["max_threads"] = 1;
+    return cfg;
 }
 
 

@@ -2,6 +2,7 @@
 
 #include "WireCellUtil/NamedFactory.h"
 #include "WireCellUtil/String.h"
+#include "WireCellUtil/Persist.h"
 
 #include <string>
 #include <iostream>
@@ -27,7 +28,7 @@ Configuration TbbFlow::default_configuration() const
 "graph":[]
 }
 )";
-    return configuration_loads(json, "json");
+    return Persist::loads(json);
 }
 
 void TbbFlow::configure(const Configuration& cfg)
