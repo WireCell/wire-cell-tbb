@@ -34,7 +34,7 @@ Configuration TbbFlow::default_configuration() const
 void TbbFlow::configure(const Configuration& cfg)
 {
     std::string type, name, desc = get<std::string>(cfg, "dfp","TbbDataFlowGraph");
-    std::tie(type,name) = parse_pair(desc);
+    std::tie(type,name) = String::parse_pair(desc);
     m_dfp = Factory::lookup<IDataFlowGraph>(type, name);
 
     m_dfpgraph.configure(cfg["graph"]);
