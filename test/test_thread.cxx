@@ -19,7 +19,7 @@ struct Fun {
 		n = x;
 	    }
 	    stringstream msg;
-	    msg << this << " n=" << n << " x=" << x << "\n";
+	    msg << this << " n=" << n << " (was:" << old_n << ") x=" << x << "\n";
 	    cerr << msg.str();
 	    --x;
 	    msleep(x);

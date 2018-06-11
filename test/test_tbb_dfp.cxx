@@ -1,6 +1,7 @@
 #include "WireCellTbb/DataFlowGraph.h"
 
 #include "WireCellIface/IDepoSource.h"
+#include "WireCellIface/IFrameFilter.h"
 #include "WireCellIface/IWireParameters.h"
 #include "WireCellIface/IWireSource.h"
 #include "WireCellIface/IWire.h"
@@ -40,6 +41,7 @@
 
 using namespace std;
 using namespace WireCell;
+using namespace WireCell::Gen;
 
 // Cheat: should be taken from global configuration
 const double time_slice = 2.0*units::microsecond; 
@@ -86,9 +88,10 @@ WireCell::INode::pointer make_depo() {
 // or, simply have the to_x be a configuration parameter.
 INode::pointer make_drifter(WireCell::WirePlaneLayer_t layer)
 {
-    WireParams wp;
-    double to_x = wp.pitch(layer).first.x();
-    return INode::pointer(new Drifter(to_x));
+    // WireParams wp;
+    // double to_x = wp.pitch(layer).first.x();
+    // return INode::pointer(new Drifter(to_x));
+    return INode::pointer(new Drifter); // may no longer work
 }
 
 
@@ -254,7 +257,7 @@ int main(int argc, char* argv[])
     WireCell::INode::pointer ductorW = WireCell::Factory::lookup<IPlaneDuctor>("PlaneDuctor", "PlaneDuctorW");
 
     WireCell::INode::pointer psmerger = WireCell::Factory::lookup<IPlaneSliceMerger>("PlaneSliceMerger");
-    WireCell::INode::pointer digitizer = WireCell::Factory::lookup<IDigitizer>("Digitizer");
+    WireCell::INode::pointer digitizer = WireCell::Factory::lookup<IFrameFilter>("Digitizer");
     WireCell::INode::pointer ccselector = WireCell::Factory::lookup<IChannelCellSelector>("ChannelCellSelector");
 
     // special as we wanna use the real type 'cause we are lazy.

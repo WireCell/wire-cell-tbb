@@ -73,6 +73,7 @@ public:
     virtual bool insert(const boost::any& anyin) {
 	int num = boost::any_cast<int>(anyin);
 	cerr << "Sunk number " << num << endl;
+        return true;
     }    
 };
 
@@ -254,8 +255,8 @@ TbbNode make_node(tbb::flow::graph& graph, const std::string& node_desc)
     return nullptr;
 }
 
-bool connect(TbbNode sender, TbbNode receiver, int sport=0, int rport=0);
-bool connect(TbbNode sender, TbbNode receiver, int sport, int rport)
+bool connect(TbbNode sender, TbbNode receiver, size_t sport=0, size_t rport=0);
+bool connect(TbbNode sender, TbbNode receiver, size_t sport, size_t rport)
 {
     Assert(sender);
     Assert(receiver);

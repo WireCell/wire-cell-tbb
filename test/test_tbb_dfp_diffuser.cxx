@@ -48,7 +48,7 @@ WireCell::INode::pointer make_depo() {
     auto ids = WireCell::Factory::lookup<IDepoSource>("TrackDepos");
     Assert(ids);
     // but now cheat by upcasting since we don't have configuration finished yet 
-    shared_ptr<TrackDepos> td = dynamic_pointer_cast<TrackDepos>(ids);
+    shared_ptr<Gen::TrackDepos> td = dynamic_pointer_cast<Gen::TrackDepos>(ids);
 
     const double cm = units::cm;
     Ray same_point(Point(cm,-cm,cm), Point(10*cm,+cm,30*cm));
@@ -81,9 +81,10 @@ WireCell::INode::pointer make_depo() {
 // or, simply have the to_x be a configuration parameter.
 INode::pointer make_drifter(WireCell::WirePlaneLayer_t layer)
 {
-    WireParams wp;
-    double to_x = wp.pitch(layer).first.x();
-    return INode::pointer(new Drifter(to_x));
+    // WireParams wp;
+    // double to_x = wp.pitch(layer).first.x();
+    // return INode::pointer(new Gen::Drifter(to_x));
+    return INode::pointer(new Gen::Drifter); // may no longer work
 }
 
 
@@ -94,7 +95,7 @@ INode::pointer make_diffuser(WireCell::WirePlaneLayer_t layer)
 {
     WireParams wp;
     auto pitch = wp.pitch(layer);
-    return INode::pointer(new Diffuser(pitch, time_slice, start_time, pitch.first.x()/drift_velocity));
+    return make_shared<Diffuser>(pitch, time_slice, start_time, pitch.first.x()/drift_velocity);
 
 }
 

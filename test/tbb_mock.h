@@ -5,8 +5,10 @@
 #include "WireCellIface/IDrifter.h"
 #include "WireCellIface/IDepoSink.h"
 #include "WireCellIface/SimpleDepo.h"
+#include "WireCellUtil/Units.h"
 
 #include <iostream>
+
 
 namespace WireCellTbb {
 
@@ -22,11 +24,11 @@ namespace WireCellTbb {
 		return false;
 	    }
 	    ++m_count;
-	    double dist = m_count*units::millimeter;
-	    double time = m_count*units::microsecond;
+	    double dist = m_count*WireCell::units::millimeter;
+	    double time = m_count*WireCell::units::microsecond;
 	    WireCell::Point pos(dist,dist,dist);
 	    out = WireCell::IDepo::pointer(new WireCell::SimpleDepo(time,pos));
-	    std::cerr << "Source: " << out->time()/units::millimeter << std::endl;
+	    std::cerr << "Source: " << out->time()/WireCell::units::millimeter << std::endl;
 	    return true;
 	}
     };
@@ -40,14 +42,14 @@ namespace WireCellTbb {
 	    m_depos.push_back(in);
 
 	    // simulate some buffering condition
-	    int n_to_keep = 2;
+	    size_t n_to_keep = 2;
 	    if (!in) { n_to_keep = 0; }
 
 	    while (m_depos.size() > n_to_keep) {
 		auto depo = m_depos.front();
 		m_depos.pop_front();
 		outq.push_back(depo);
-		std::cerr << "Drift: " << depo->time()/units::millimeter << std::endl;
+		std::cerr << "Drift: " << depo->time()/WireCell::units::millimeter << std::endl;
 	    }
 
 	    return true;
@@ -58,7 +60,7 @@ namespace WireCellTbb {
     public:
 	virtual ~MockDepoSink() {}
 	virtual bool operator()(const input_pointer& depo) {
-	    std::cerr << "Sink: " << depo->time()/units::millimeter << std::endl;
+	    std::cerr << "Sink: " << depo->time()/WireCell::units::millimeter << std::endl;
 	    return true;
 	}    
     };
