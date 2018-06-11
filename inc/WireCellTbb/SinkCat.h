@@ -16,7 +16,8 @@ namespace WireCellTbb {
 	    m_wcnode = std::dynamic_pointer_cast<WireCell::ISinkNodeBase>(wcnode);
 	}
 	boost::any operator()(const boost::any& in) {
-	    bool ok = (*m_wcnode)(in);
+	    //bool ok = (*m_wcnode)(in);
+            (*m_wcnode)(in);    // fixme: don't ignore the return code
 	    return in;
 	}
     };

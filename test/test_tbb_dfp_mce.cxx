@@ -64,8 +64,8 @@ WireCellTbb::Node make_node(tbb::flow::graph& graph, const std::string& node_des
     return nullptr;
 }
 
-bool connect(WireCellTbb::Node sender, WireCellTbb::Node receiver, int sport=0, int rport=0);
-bool connect(WireCellTbb::Node sender, WireCellTbb::Node receiver, int sport, int rport)
+bool connect(WireCellTbb::Node sender, WireCellTbb::Node receiver, size_t sport=0, size_t rport=0);
+bool connect(WireCellTbb::Node sender, WireCellTbb::Node receiver, size_t sport, size_t rport)
 {
     using namespace WireCellTbb;
 

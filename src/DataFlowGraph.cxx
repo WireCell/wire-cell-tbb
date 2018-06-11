@@ -37,13 +37,13 @@ Configuration DataFlowGraph::default_configuration() const
 
 void DataFlowGraph::configure(const Configuration& cfg)
 {
-    int maxthreads = get<int>(cfg,"max_threads");
+    // int maxthreads = get<int>(cfg,"max_threads");
     // fixme: now what?
 }
 
 
 bool DataFlowGraph::connect(INode::pointer tail, INode::pointer head,
-			    int sport, int rport)
+			    size_t sport, size_t rport)
 {
     using namespace WireCellTbb;
 

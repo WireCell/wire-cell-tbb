@@ -21,7 +21,7 @@ namespace WireCellTbb {
 	/// Connect two nodes so that data runs from tail to head.
 	/// Return false on error.
 	virtual bool connect(WireCell::INode::pointer tail, WireCell::INode::pointer head,
-			     int tail_port=0, int head_port=0);
+			     size_t tail_port=0, size_t head_port=0);
 
 	/// Run the graph, return false on error.
 	virtual bool run();

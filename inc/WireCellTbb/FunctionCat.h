@@ -4,6 +4,8 @@
 #include "WireCellIface/IFunctionNode.h"
 #include "WireCellTbb/NodeWrapper.h"
 
+#include <iostream>             // temporary, don't ignore the error code, chump!
+
 namespace WireCellTbb {
 
 
@@ -19,6 +21,9 @@ namespace WireCellTbb {
 	boost::any operator() (const boost::any &in) const {
 	    boost::any ret;
 	    bool ok = (*m_wcnode)(in, ret); // fixme: don't ignore the error code!
+            if (!ok) {
+                std::cerr << "I'm ignoring the error code!\n";
+            }
 	    return ret;
 	}
 	

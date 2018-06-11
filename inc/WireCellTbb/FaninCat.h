@@ -26,7 +26,8 @@ namespace WireCellTbb {
 	    helper_type ih;
 	    any_vector in = ih.as_any(tup);
 	    boost::any ret;
-	    bool ok = (*m_wcnode)(in, ret);
+            // bool ok = (*m_wcnode)(in, ret);
+            (*m_wcnode)(in, ret); // fixme: don't ignore return code
 	    return ret;
 	}
 	
